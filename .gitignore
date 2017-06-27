@@ -1,3 +1,5 @@
 packrat/lib*/
+.Rhistory
 .Rproj.user
 temp
+data
