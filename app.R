@@ -231,7 +231,8 @@ observeEvent(input$alertType, {
                                   , " ", day(rec_time),", "
                                   , year(rec_time) )
                        , `Message Text` = wea
-                       , `Affected Areas` = areas)} 
+                       , `Affected Areas` = areas) %>%
+             htmlTableWidgetOutput()} 
        
      }
      , striped = TRUE

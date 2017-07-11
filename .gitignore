@@ -3,3 +3,4 @@ packrat/lib*/
 .Rproj.user
 temp
 data
+packrat/src/
