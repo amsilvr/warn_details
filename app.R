@@ -211,52 +211,71 @@ observeEvent(input$alertType, {
    output$events <- renderDataTable({
      county_events = click_data$clickedShape$id %>%
      print()
-     #### Conditional filtering to account for single county
-     if (is.null(click_data$clickedShape$id)) {
-         left_join(fips_msg, msg2) %>%
-             arrange(desc(rec_time)) %>%
-             transmute(`Alert Received` =
+     print(input$alertType)
+     #### What are we looking to put in our table?
+     if (is.null(click_data$clickedShape$id)) { ## Full Country
+         if (input$alertType == "Total") { ## Full country, all alerts (default)
+                 left_join(fips_msg, msg2)  %>%
+                 arrange(desc(rec_time)) %>%
+                 transmute(`Alert Received` =
+                               paste0(month(rec_time,label = TRUE, abbr = TRUE)
+                                      , " ", day(rec_time),", "
+                                      , year(rec_time) )
+                           , `Message Text` = wea
+                           , `Affected Areas` = areas)
+         } else { ## Full country, chose a category
+         fips_msg %>%
+            left_join(msg2) %>%
+            filter(type == input$alertType) %>%
+            arrange(desc(rec_time)) %>%
+            transmute(`Alert Received` =
                            paste0(month(rec_time,label = TRUE, abbr = TRUE)
                                   , " ", day(rec_time),", "
                                   , year(rec_time) )
                        , `Message Text` = wea
-                       , `Affected Areas` = areas)
-     } else if (input$alertType == "Total") {
-        filter(fips_msg, GEOID == county_events) %>%
-        left_join(msg2)  %>%
-             arrange(rec_time) %>%
-             transmute(`Alert Received` =
-                           paste0(month(rec_time,label = TRUE, abbr = TRUE)
-                                  , " ", day(rec_time),", "
-                                  , year(rec_time) )
-                       , `Message Text` = wea
-                       , `Affected Areas` = areas)
-     } else {
-       filter(fips_msg, GEOID == county_events) %>%
-       left_join(msg2) %>%
-       filter(type == input$alertType) %>%
-             arrange(rec_time) %>%
-             transmute(`Alert Received` =
-                           paste0(month(rec_time,label = TRUE, abbr = TRUE)
-                                  , " ", day(rec_time),", "
-                                  , year(rec_time) )
-                       , `Message Text` = wea
-                       , `Affected Areas` = areas) } %>%
+                       , `Affected Areas` = areas)}
+     } else { ## Single County, all alerts
+         if (input$alertType == "Total") {
+            filter(fips_msg, GEOID == county_events) %>%
+            left_join(msg2)  %>%
+                 arrange(desc(rec_time)) %>%
+                 transmute(`Alert Received` =
+                               paste0(month(rec_time,label = TRUE, abbr = TRUE)
+                                      , " ", day(rec_time),", "
+                                      , year(rec_time) )
+                           , `Message Text` = wea
+                           , `Affected Areas` = areas)
+        } else { ## Single County Alert Category chosen
+           filter(fips_msg, GEOID == county_events) %>%
+           left_join(msg2) %>%
+           filter(type == input$alertType) %>%
+                 arrange(desc(rec_time)) %>%
+                 transmute(`Alert Received` =
+                               paste0(month(rec_time,label = TRUE, abbr = TRUE)
+                                      , " ", day(rec_time),", "
+                                      , year(rec_time) )
+                           , `Message Text` = wea
+                           , `Affected Areas` = areas) }
+        } %>%
 ###### Place Output into datatable ######
-         datatable(options = list(
-                    #columnDefs = list(list(className = 'dt-center', targets = 5)),
-                    pageLength = 5,
-                    lengthMenu = c(5, 10, 15, 20)
-                ))
+         datatable(rownames = FALSE,
+             options = list(
+             initComplete = JS(
+                 "function(settings, json) {",
+                 "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff'});",
+                 "}"),
+             pageLength = 5,
+             lengthMenu = c(5, 10, 15, 20)
+             )
+        )}
+    )
+}
 
 
-   }
-)
 
 
 
 
- }
 
 # Run the application
 shinyApp(ui = ui, server = server)
