@@ -4,3 +4,5 @@ packrat/lib*/
 temp
 data
 packrat/src/
+.RData
+.httr-oauth

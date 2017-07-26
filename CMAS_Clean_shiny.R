@@ -107,11 +107,11 @@ map_counties <- function() {
 tmp <- st_read(t[grep("shp$",t)], stringsAsFactors = FALSE) %>%
   left_join(state_iso) %>%
   group_by(STATEFP, COUNTYFP)
-  tmp$NAME <- str_replace_all(tmp$NAME, pattern = "Ã±",replacement = "n") %>%
-  str_replace_all("Ã¡",replacement = "a") %>%
-  str_replace_all("Ã¼",replacement = "u") %>%
-  str_replace_all("Ã³",replacement = "o") %>%
-  str_replace_all("Ã",replacement = "i")
+  # tmp$NAME <- str_replace_all(tmp$NAME, pattern = "Ã±",replacement = "n") %>%
+  # str_replace_all("Ã¡",replacement = "a") %>%
+  # str_replace_all("Ã¼",replacement = "u") %>%
+  # str_replace_all("Ã³",replacement = "o") %>%
+  # str_replace_all("Ã",replacement = "i")
   return(tmp)
 }
   
