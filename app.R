@@ -210,8 +210,8 @@ observeEvent(input$alertType, {
  #Create a table with all the events of type in that geoid
    output$events <- renderDataTable({
      county_events = click_data$clickedShape$id %>%
-     print()
-     print(input$alertType)
+     # print()
+     # print(input$alertType)
      #### What are we looking to put in our table?
      if (is.null(click_data$clickedShape$id)) { ## Full Country
          if (input$alertType == "Total") { ## Full country, all alerts (default)
