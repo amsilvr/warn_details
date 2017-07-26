@@ -19,11 +19,6 @@ counties_sf <- read_sf(c_shp[grep("shp$", c_shp)]) %>% #pulls the shp file from 
     left_join(state_iso) %>%
     st_transform('+proj=longlat +datum=WGS84') %>%
     inner_join(lsad_lookup())
-# counties_sf$NAME <- str_replace_all(counties_sf$NAME, pattern = "?",replacement = "?") %>%
-#     str_replace_all("?",replacement = "?") %>%
-#     str_replace_all("?",replacement = "?") %>%
-#     str_replace_all("?",replacement = "?") %>%
-#     str_replace_all("?",replacement = "??")
 
 long_county <- counties_sf %>%
     transmute(GEOID
