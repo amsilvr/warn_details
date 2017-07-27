@@ -1,5 +1,5 @@
 ## CMAS Clean
-
+#browser()
 library(googlesheets)
 library(tidyverse)
 library(lubridate)
@@ -11,31 +11,31 @@ ss_new <- gs_key("1Xw4JefUCS4HHQ0KpvKhr-DjklqzhH3_CeA-zhoAuQfI", visibility = "p
 day_file_name <- paste0(today(),"-msgfile.csv")
 
 load_msgs <- function() {
-        
+
    if (file.exists(day_file_name)) {
      msg <- read_csv(day_file_name) %>% select(-X1)
-   } 
-   
-  else   
+   }
+
+  else
     msg <-  gs_read_csv(ss = ss_new
                        , col_names = c("rec_time", "cmac", "full_text")
                        , coltypes = "Tcc", skip = 1, trim_ws = TRUE) %>%
                 mutate(rec_time = mdy_hms(gsub(" at ", " ", rec_time)
                                           , tz = "America/New_York"
-                                          , truncated = 3) 
+                                          , truncated = 3)
                 ) %>%
                 separate(full_text,
                          c("blank", "gateway_id" ,"msg_id"
-                           ,"special_handling", "message_type" 
-                           , "category", "response_type", "severity" 
+                           ,"special_handling", "message_type"
+                           , "category", "response_type", "severity"
                            , "urgency", "certainty", "expire_time"
                            , "text_language", "alert_message","dummy")
                          , sep = "CMAC_[:word:]*: "
                          , fill = "right" ## drops the warning for rows with too many records
                          , remove = TRUE
-                ) 
-        
-        
+                )
+
+
         ## creates a table for fields with "update" records
         ######################
         # for working offline
@@ -48,21 +48,21 @@ load_msgs <- function() {
                        , message_type = category
                        , category = response_type
                        , response_type = severity
-                       , severity = urgency 
-                       , urgency = certainty 
-                       , certainty = expire_time 
-                       , text_language = alert_message 
+                       , severity = urgency
+                       , urgency = certainty
+                       , certainty = expire_time
+                       , text_language = alert_message
                        , alert_message = dummy
                 )
-        
+
         msg <- filter(msg, nchar(special_handling) >= 10) %>%
                 select(-blank, -dummy)
-        
-        ## puts all the records back into a single table and 
-        ## uses two different separators to split out the alert 
+
+        ## puts all the records back into a single table and
+        ## uses two different separators to split out the alert
         ## text from the plain English "area" field
         ## and finally removes the tcs boilerplate
-        
+
         msg <- bind_rows(msg, updates) %>%
                 mutate(expire_time = ymd_hms(expire_time)) %>%
                 separate(alert_message, c("message_text","t2")
@@ -73,18 +73,18 @@ load_msgs <- function() {
                 mutate(threat_type = gsub("\\. .*","", cmac)
                         , msg_id = as.character(str_trim(msg_id))
                         , areas = str_trim(areas)) %>%
-                dplyr::filter(!(gateway_id == "http://tcs.tsis.com\n") ) 
-        
-        msg <- msg[-grep(" test", msg$threat_type),] 
+                dplyr::filter(!(gateway_id == "http://tcs.tsis.com\n") )
+
+        msg <- msg[-grep(" test", msg$threat_type),]
        # write.csv(msg, file = day_file_name) commented out for shinyapps version
        return(msg)
-       
-        } 
+
+        }
 # State and Territory Lookup
 
 map_states <- function() {
   state_url <- "http://www2.census.gov/geo/tiger/GENZ2016/shp/cb_2016_us_state_20m.zip"
-} 
+}
 
 state_iso <- read_csv("https://www2.census.gov/geo/docs/reference/codes/files/national_county.txt"
                       , col_names = c("iso_3166_2"
@@ -104,48 +104,50 @@ map_counties <- function() {
   }
     t <- unzip("data/county_shape_file.zip", exdir = "data")
    # Read the file with sf
-tmp <- st_read(t[grep("shp$",t)], stringsAsFactors = FALSE) %>%
-  left_join(state_iso) %>%
-  group_by(STATEFP, COUNTYFP)
-  # tmp$NAME <- str_replace_all(tmp$NAME, pattern = "Ã±",replacement = "n") %>%
-  # str_replace_all("Ã¡",replacement = "a") %>%
-  # str_replace_all("Ã¼",replacement = "u") %>%
-  # str_replace_all("Ã³",replacement = "o") %>%
-  # str_replace_all("Ã",replacement = "i")
-  return(tmp)
-}
-  
+    st_read(t[grep("shp$",t)], stringsAsFactors = FALSE) %>%
+      as.data.frame() %>%
+      left_join(state_iso, by = "STATEFP") %>%
+      group_by(STATEFP, COUNTYFP) %>%
+        mutate(GEOID = GEOID,
+          NAME = NAME %>%
+          str_replace_all("ñ",replacement = "n") %>%
+          str_replace_all("á",replacement = "a") %>%
+          str_replace_all("ü",replacement = "u") %>%
+          str_replace_all("ó",replacement = "o") %>%
+          str_replace_all("í",replacement = "i")
+        ) %>%
+      st_sf()
+    }
+
 
 ## Download local copy of FIPS lookup data and read into memory
 load_fips <- function() {
   counties_sf <- map_counties() %>%
-    mutate(areaname = paste(iso_3166_2, NAME),
+    as.data.frame() %>%
+    transmute(areaname = paste(iso_3166_2, NAME),
            GEOID = as.character(GEOID)) %>%
-    return()
-  
+      as.tibble()
   }
-
-
 lsad_lookup <- function() {
-# This looks up the location classification names 
+# This looks up the location classification names
 # from lsad.html
 # and makes them readable for the data labels in the
-# choropleth 
-  
+# choropleth
+
   url <- "https://www.census.gov/geo/reference/lsad.html"
   lsad <- htmltab::htmltab(doc = url, which = "//th[text() = 'LSAD']/ancestor::table") %>%
     filter(grepl("06|04|12|05|03|00|15|25|13", LSAD) == TRUE) %>%
     transmute(LSAD,description = `LSAD Description`) %>%
-    mutate(description = 
+    mutate(description =
                 str_extract(pattern = "^[^(]*",string = description) %>%
                 str_trim() %>%
                 str_to_title()) %>%
     replace_na(list(LSAD = "", description = "")) %>%
     filter(!description == "Balance Of County Ec Place")
-  
+
 }
 
-area_find <- function(area_list) { 
+area_find <- function(area_list) {
         area_list <- str_replace_all(area_list
                      , pattern = "(([A-z]*) \\(([A-Z]{2})\\)), \\1"
                      , replacement = "\\2 city \\(\\3\\), \\2 \\(\\3\\)"
@@ -153,15 +155,15 @@ area_find <- function(area_list) {
 
         m <- str_match_all(string = area_list
                              , pattern = "[A-z. ]{3,} ")
-        
+
         n <- str_match_all(string = area_list
                            , pattern = "\\(?([A-Z]{2})\\)?")
-        
+
         area_clean <- paste(n[[1]][,2]
                             , str_trim(m[[1]][,1], side = "both")) %>%
-        
+
   # ## Clean TCS county names to match list from census county map
-  # ##       
+  # ##
         str_replace_all(pattern = "E\\.",replacement = "East") %>%
         str_replace_all(pattern = "W\\.",replacement = "West") %>%
         str_replace_all(pattern = "(IN La|IL La) (Porte|Salle)",replacement = "\\1\\2") %>%
@@ -174,13 +176,15 @@ area_find <- function(area_list) {
 
 }
 
-## Substitutes all counties in a state 
+## Substitutes all counties in a state
 ## For areas that include only state names
 
 full_state <- function(areas_states) {
-  if (!exists("fips_lookup")) fips_lookup <- load_fips()
-        left_join(areas_states, fips_lookup
-                  , by = c("areas" = "iso_3166_2")) %>%
+  if (!exists("fips_lookup")) fips_lookup <- load_fips() %>%
+  #fips_lookup %>%
+        mutate(iso_3166_2 = str_match(areaname, "[A-Z]{2}")) %>%
+        distinct() %>%
+        right_join(areas_states) %>%
         transmute(msg_id = as.character(msg_id)
                   ,GEOID = as.character(GEOID)) %>%
         return()
@@ -193,10 +197,11 @@ flatten_fips <- function(msg) {
                      , areas)
   #separate out alerts with full state areas, convert directly to fips
   areas_states <- filter(areas, str_length(areas) == 2) %>%
-    full_state()
+      transmute(msg_id, iso_3166_2 = areas) %>%
+      full_state()
   #remove those alerts from the other areas
   areas <- filter(areas, str_length(areas) > 2)
-  
+
   # create a matrix of areas for each message id that has individual counties
   areas <- tapply(areas$areas, area_find
                   , INDEX = areas$msg_id
@@ -208,12 +213,12 @@ flatten_fips <- function(msg) {
       transmute(msg_id = as.character(str_extract(rowname, "[[:alnum:]]{8}"))
                                      , areaname = value) %>%
   # Join messages with FIPS codes by matching areanames
-  
+
     left_join(fips_lookup) %>%
     transmute(msg_id, areaname, GEOID = as.character(GEOID))
-  
+
   # Fix the 18 that don't seem to match for whatever reason
-  areas <-  mutate(areas, GEOID = 
+  areas <-  mutate(areas, GEOID =
              case_when(
                       grepl("MD Baltimore city"
                             ,areas$areaname, ignore.case = TRUE) ~ "24005",
@@ -238,20 +243,18 @@ flatten_fips <- function(msg) {
     select(-areaname) %>%
     rbind(areas_states) %>%
     return()
- 
-  
 }
 
-# Classify message type - 
-# Tornado, Flash Flood, 
-# AMBER, Tsunami, or Other
+# Classify message type -
+# Tornado, Flash Flood,
+# AMBER, Hurricane, or Other
 
 classify_message <- function(msg) {
-  
-  mutate(msg, type = 
+
+  mutate(msg, type =
            case_when(
              grepl("Tornado", msg$message_text, ignore.case = TRUE) ~ "Tornado",
-             grepl("Flash Flood", msg$message_text, ignore.case = TRUE) ~ "FlashFlood", 
+             grepl("Flash Flood", msg$message_text, ignore.case = TRUE) ~ "FlashFlood",
              grepl("Amber", msg$message_text, ignore.case = TRUE) ~ "AMBER",
              grepl("Kidnap", msg$message_text, ignore.case = TRUE) ~ "AMBER",
              grepl("child", msg$message_text, ignore.case = TRUE) ~ "AMBER",
@@ -263,20 +266,20 @@ classify_message <- function(msg) {
               , expire_time
               , response = response_type
               , urgency
-              , wea = message_text 
+              , wea = message_text
               , type = as.factor(type)
               , areas
-    ) 
+    )
 }
 
 #####################
 ## Run Functions  ###
 #####################
 
-# If msg isn't in memory, check to see if we have already 
-# downloaded the data and cleaned it today. If so, get 
+# If msg isn't in memory, check to see if we have already
+# downloaded the data and cleaned it today. If so, get
 # it from the csv created on today's date.
-# If we haven't created the msg df today, then load 
+# If we haven't created the msg df today, then load
 # from the google sheet
 
 if (!exists("msg")) {
@@ -306,4 +309,3 @@ alert_tally <- left_join(msg2, fips_msg) %>%
         mutate(Total = AMBER + FlashFlood
                + Hurricane + Other + Tornado)
 
-        

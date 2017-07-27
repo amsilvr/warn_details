@@ -8,6 +8,13 @@ library(stringr)
 library(sf)
 library(leaflet)
 library(DT)
+
+## Centers for all states
+
+state_list <- tibble(name = state.name
+                     , ctrx = state.center$x
+                     , ctry = state.center$y)
+
 # Download Shapefiles
 #
 if (!exists("alert_tally")) {
@@ -31,13 +38,6 @@ counties_sf <- read_sf(c_shp[grep("shp$", c_shp)]) %>%
   st_sf() %>%
   st_transform('+proj=longlat +datum=WGS84')
 
-# counties_sf$NAME <-
-#   str_replace_all(counties_sf$NAME, pattern = "Ã±",replacement = "ñ") %>%
-#   str_replace_all("Ã¡",replacement = "á") %>%
-#   str_replace_all("Ã¼",replacement = "ñ") %>%
-#   str_replace_all("Ã³",replacement = "ó") %>%
-#   str_replace_all("Ã",replacement = "í")
-
 bins <- c(0, 1, 3, 5, 10, 20, 30, 40, 80, 210)
 pal <- colorBin("YlOrRd", domain = NULL, bins = bins, pretty = TRUE)
 
@@ -49,10 +49,10 @@ ui <- fluidPage(
   tags$style(type = "text/css",
           "html,
              body {width:100%;height:100%;text-align:left;}
-             .selectize-input { font-size: 32px; background-color:aqua; }
-             .selectize-dropdown { font-size: 25px; line-height: 30px; }
-             .control-label { font-size: 32px; color: white!important;}
-             .shiny-input-container {background-color:black;}
+             /*.selectize-input { font-size: 32px; background-color:aqua; }
+               .selectize-dropdown { font-size: 25px; line-height: 30px; }
+               .control-label { font-size: 32px; color: white!important;}
+               .shiny-input-container {background-color:black;}*/
              .content::-webkit-scrollbar {display: none;}
              .h {text-align:center!important;}"),
 
@@ -62,14 +62,14 @@ ui <- fluidPage(
           ),
 
     column(5, offset = 1, # HTML Selector menu
-        selectInput(inputId = "alertType" , label = "Which Alert Type?"
+        h3(selectInput(inputId = "alertType" , label = "Which Alert Type?"
                               ,choices = c("Total" = "Total"
                                            ,"AMBER Alert" = "AMBER"
                                            ,"Flash Flood" = "FlashFlood"
                                            ,"Hurricane" = "Hurricane"
                                            ,"Tornado" = "Tornado"
                                            ,"Other" = "Other")
-        )
+        ))
     ),
     #### Instructions ####
     fluidRow(column(10, offset = 1,
@@ -133,7 +133,7 @@ fd <- reactive({
 output$map <- renderLeaflet({
     leaflet() %>%
     addProviderTiles(providers$Stamen.TonerLite) %>%
-    setView(lng = -93.85, lat = 44, zoom = 4)
+    fitBounds(-126.25,23.24,-66.67,49.61)
 })
 
 observeEvent(input$alertType, {
@@ -209,73 +209,47 @@ observeEvent(input$alertType, {
 
  #Create a table with all the events of type in that geoid
    output$events <- renderDataTable({
-     county_events = click_data$clickedShape$id %>%
-     # print()
-     # print(input$alertType)
+     county_events = click_data$clickedShape$id
+      print(county_events)
+      print(input$alertType)
      #### What are we looking to put in our table?
-     if (is.null(click_data$clickedShape$id)) { ## Full Country
-         if (input$alertType == "Total") { ## Full country, all alerts (default)
-                 left_join(fips_msg, msg2)  %>%
-                 arrange(desc(rec_time)) %>%
-                 transmute(`Alert Received` =
-                               paste0(month(rec_time,label = TRUE, abbr = TRUE)
-                                      , " ", day(rec_time),", "
-                                      , year(rec_time) )
-                           , `Message Text` = wea
-                           , `Affected Areas` = areas)
-         } else { ## Full country, chose a category
-         fips_msg %>%
-            left_join(msg2) %>%
-            filter(type == input$alertType) %>%
-            arrange(desc(rec_time)) %>%
-            transmute(`Alert Received` =
-                           paste0(month(rec_time,label = TRUE, abbr = TRUE)
-                                  , " ", day(rec_time),", "
-                                  , year(rec_time) )
+     #### Whole country or single county?
+     if (is.null(county_events)) {tmptbl <- fips_msg}
+     else {tmptbl <- fips_msg %>% filter(GEOID == county_events)}
+     if (input$alertType == "Total") {tmptbl <- tmptbl %>% left_join(msg2)}
+     else {tmptbl <- tmptbl %>% left_join(msg2) %>%
+               filter(type == input$alertType)}
+
+     tmptbl %>%
+         arrange(desc(rec_time)) %>%
+         transmute(`Alert Received` = rec_time
                        , `Message Text` = wea
-                       , `Affected Areas` = areas)}
-     } else { ## Single County, all alerts
-         if (input$alertType == "Total") {
-            filter(fips_msg, GEOID == county_events) %>%
-            left_join(msg2)  %>%
-                 arrange(desc(rec_time)) %>%
-                 transmute(`Alert Received` =
-                               paste0(month(rec_time,label = TRUE, abbr = TRUE)
-                                      , " ", day(rec_time),", "
-                                      , year(rec_time) )
-                           , `Message Text` = wea
-                           , `Affected Areas` = areas)
-        } else { ## Single County Alert Category chosen
-           filter(fips_msg, GEOID == county_events) %>%
-           left_join(msg2) %>%
-           filter(type == input$alertType) %>%
-                 arrange(desc(rec_time)) %>%
-                 transmute(`Alert Received` =
-                               paste0(month(rec_time,label = TRUE, abbr = TRUE)
-                                      , " ", day(rec_time),", "
-                                      , year(rec_time) )
-                           , `Message Text` = wea
-                           , `Affected Areas` = areas) }
-        } %>%
+                       , `Affected Areas` = areas) %>%
 ###### Place Output into datatable ######
-         datatable(rownames = FALSE,
+        datatable(
+             rownames = FALSE,
+             class = 'row-border stripe nowrap compact',
              options = list(
              initComplete = JS(
                  "function(settings, json) {",
                  "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff'});",
                  "}"),
              pageLength = 5,
-             lengthMenu = c(5, 10, 15, 20)
-             )
-        )}
+             lengthMenu = c(5, 10, 15, 20),
+             columDefs = list(list(
+                 targets = 3,
+                 render = JS(
+                     "function(data, type, row, meta) {",
+                     "return type === 'display' && data.length > 50 ?",
+                     "'<span title=\"' + data + '\">' + data.substr(0, 6) + '...</span>' : data;",
+                     "}")
+                 ))), callback = JS('table.draw(false);')
+
+            ) %>%
+        formatDate(1)
+     }
     )
 }
-
-
-
-
-
-
 
 # Run the application
 shinyApp(ui = ui, server = server)
