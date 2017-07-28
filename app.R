@@ -38,10 +38,7 @@ counties_sf <- read_sf(c_shp[grep("shp$", c_shp)]) %>%
   st_sf() %>%
   st_transform('+proj=longlat +datum=WGS84')
 
-<<<<<<< HEAD
-=======
 
->>>>>>> cf757b086bd75fb9abd7fa736e50250a7f104cd9
 bins <- c(0, 1, 3, 5, 10, 20, 30, 40, 80, 210)
 pal <- colorBin("YlOrRd", domain = NULL, bins = bins, pretty = TRUE)
 
@@ -214,8 +211,8 @@ observeEvent(input$alertType, {
  #Create a table with all the events of type in that geoid
    output$events <- renderDataTable({
      county_events = click_data$clickedShape$id
-      print(county_events)
-      print(input$alertType)
+      # print(county_events)
+      # print(input$alertType)
      #### What are we looking to put in our table?
      #### Whole country or single county?
      if (is.null(county_events)) {tmptbl <- fips_msg}
@@ -234,21 +231,21 @@ observeEvent(input$alertType, {
              rownames = FALSE,
              class = 'row-border stripe nowrap compact',
              options = list(
-             initComplete = JS(
-                 "function(settings, json) {",
-                 "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff'});",
-                 "}"),
-             pageLength = 5,
-             lengthMenu = c(5, 10, 15, 20),
-             columDefs = list(list(
-                 targets = 3,
-                 render = JS(
-                     "function(data, type, row, meta) {",
-                     "return type === 'display' && data.length > 50 ?",
-                     "'<span title=\"' + data + '\">' + data.substr(0, 6) + '...</span>' : data;",
-                     "}")
-                 ))), callback = JS('table.draw(false);')
-
+                 columDefs = list(list(
+                     targets = 2,
+                     render = JS(
+                         "function(data, type, row, meta) {",
+                         "return type === 'display' && data.length > 60 ?",
+                         "'<span title=\"' + data + '\">' + data.substr(0, 60) + '...</span>' : data;",
+                         "}")
+                     )),
+                 initComplete = JS(
+                     "function(settings, json) {",
+                     "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff'});",
+                     "}"),
+                 pageLength = 5,
+                 lengthMenu = c(5, 10, 15, 20)),
+             callback = JS('return table;')
             ) %>%
         formatDate(1)
      }
