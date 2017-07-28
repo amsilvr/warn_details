@@ -38,6 +38,10 @@ counties_sf <- read_sf(c_shp[grep("shp$", c_shp)]) %>%
   st_sf() %>%
   st_transform('+proj=longlat +datum=WGS84')
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> cf757b086bd75fb9abd7fa736e50250a7f104cd9
 bins <- c(0, 1, 3, 5, 10, 20, 30, 40, 80, 210)
 pal <- colorBin("YlOrRd", domain = NULL, bins = bins, pretty = TRUE)
 
