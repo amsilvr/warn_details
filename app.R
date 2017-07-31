@@ -211,42 +211,45 @@ observeEvent(input$alertType, {
  #Create a table with all the events of type in that geoid
    output$events <- renderDataTable({
      county_events = click_data$clickedShape$id
+     alert_type = input$alertType
       # print(county_events)
       # print(input$alertType)
      #### What are we looking to put in our table?
      #### Whole country or single county?
-     if (is.null(county_events)) {tmptbl <- fips_msg}
-     else {tmptbl <- fips_msg %>% filter(GEOID == county_events)}
-     if (input$alertType == "Total") {tmptbl <- tmptbl %>% left_join(msg2)}
-     else {tmptbl <- tmptbl %>% left_join(msg2) %>%
-               filter(type == input$alertType)}
+     if (is.null(county_events)) {tmptbl <- fips_msg
+     } else {tmptbl <- fips_msg %>% filter(GEOID == county_events)}
+     if (alert_type == "Total") {tmptbl <- tmptbl %>% left_join(msg2)
+     } else {tmptbl <- tmptbl %>% left_join(msg2) %>%
+               filter(type == alert_type)}
 
-     tmptbl %>%
+     tmptbl <- tmptbl %>%
+         distinct(msg_id,.keep_all = TRUE) %>%
          arrange(desc(rec_time)) %>%
          transmute(`Alert Received` = rec_time
-                       , `Message Text` = wea
+                       , `Message Text` = str_replace_all(wea, "\'", "")
                        , `Affected Areas` = areas) %>%
+         head(500)
+
 ###### Place Output into datatable ######
-        datatable(
-             rownames = FALSE,
-             class = 'row-border stripe nowrap compact',
-             options = list(
-                 columDefs = list(list(
-                     targets = 2,
-                     render = JS(
-                         "function(data, type, row, meta) {",
-                         "return type === 'display' && data.length > 60 ?",
-                         "'<span title=\"' + data + '\">' + data.substr(0, 60) + '...</span>' : data;",
-                         "}")
-                     )),
-                 initComplete = JS(
-                     "function(settings, json) {",
-                     "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff'});",
-                     "}"),
-                 pageLength = 5,
-                 lengthMenu = c(5, 10, 15, 20)),
-             callback = JS('return table;')
-            ) %>%
+        datatable(tmptbl,
+                  options = list(
+                      initComplete = JS(
+                          "function(settings, json) {",
+                          "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff'});",
+                          "}"),
+                      columnDefs = list(list(
+                          targets = 2,
+                          render = JS(
+                              "function(data, type, row, meta) {",
+                              "return type === 'display' && data.length > 6 ?",
+                              "'<span title=\"' + data + '\">' + data.substr(0, 6) + '...</span>' : data;",
+                              "}")
+                      )),
+                      pageLength = 5,
+                      lengthMenu = c(5, 10, 15, 20)),
+                  class = 'row-border stripe nowrap compact',
+                  callback = JS('table.draw(false);'),
+                  rownames = FALSE) %>%
         formatDate(1)
      }
     )
