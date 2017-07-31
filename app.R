@@ -1,7 +1,6 @@
 # Setup
 
 library(shiny)
-library(shinythemes)
 library(tidyverse)
 library(lubridate)
 library(stringr)
@@ -227,8 +226,7 @@ observeEvent(input$alertType, {
          arrange(desc(rec_time)) %>%
          transmute(`Alert Received` = rec_time
                        , `Message Text` = str_replace_all(wea, "\'", "")
-                       , `Affected Areas` = areas) %>%
-         head(500)
+                       , `Affected Areas` = areas)
 
 ###### Place Output into datatable ######
         datatable(tmptbl,
@@ -241,8 +239,8 @@ observeEvent(input$alertType, {
                           targets = 2,
                           render = JS(
                               "function(data, type, row, meta) {",
-                              "return type === 'display' && data.length > 6 ?",
-                              "'<span title=\"' + data + '\">' + data.substr(0, 6) + '...</span>' : data;",
+                              "return type === 'display' && data.length > 50 ?",
+                              "'<span title=\"' + data + '\">' + data.substr(0, 50) + '...</span>' : data;",
                               "}")
                       )),
                       pageLength = 5,
