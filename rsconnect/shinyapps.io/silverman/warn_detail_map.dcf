@@ -3,9 +3,9 @@ title: warn_detail_map
 account: silverman
 server: shinyapps.io
 appId: 192524
-bundleId: 883179
+bundleId: 922162
 url: https://silverman.shinyapps.io/warn_detail_map/
-when: 1498527952.61759
+when: 1501523289.84303
 asMultiple: FALSE
 asStatic: FALSE
 ignoredFiles: leaflet.R|retrieve_xml.R|data/cb_2016_us_county_20m.cpg|data/cb_2016_us_county_20m.dbf|data/cb_2016_us_county_20m.prj|data/cb_2016_us_county_20m.shp|data/cb_2016_us_county_20m.shp.ea.iso.xml|data/cb_2016_us_county_20m.shp.iso.xml|data/cb_2016_us_county_20m.shp.xml|data/cb_2016_us_county_20m.shx|data/county_shape_file.zip|temp/server.R|temp/ui.R

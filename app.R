@@ -37,10 +37,13 @@ counties_sf <- read_sf(c_shp[grep("shp$", c_shp)]) %>%
   st_sf() %>%
   st_transform('+proj=longlat +datum=WGS84')
 
-
-bins <- c(0, 1, 3, 5, 10, 20, 30, 40, 80, 210)
-pal <- colorBin("YlOrRd", domain = NULL, bins = bins, pretty = TRUE)
-
+bins <- c(1,5,10,15,20,25,30,40,50,210)#even distribution
+#bins <- c(1, 24, 47, 71, 93, 117, 140, 164, 187, 210) # even intervals
+pal <- colorBin("YlOrRd",
+                domain = NULL,
+                bins = bins,
+                pretty = TRUE,
+                na.color = "#fefefe")
 
 # Define UI for application that draws a histogram
 ui <- fluidPage(
@@ -54,15 +57,15 @@ ui <- fluidPage(
                .control-label { font-size: 32px; color: white!important;}
                .shiny-input-container {background-color:black;}*/
              .content::-webkit-scrollbar {display: none;}
-             .h {text-align:center!important;}"),
+             .h {text-align:center!important;}
+             td { vertical-aligh:top!important; }"),
 
      column(5, offset = 1, #Title and instructions
-          h1("WARN Alerts by County"),
-          h3("Mouse over map for more info")
+          h1("WARN Alerts by County")
           ),
 
     column(5, offset = 1, # HTML Selector menu
-        h3(selectInput(inputId = "alertType" , label = "Which Alert Type?"
+        h4(selectInput(inputId = "alertType" , label = "Alert Type"
                               ,choices = c("Total" = "Total"
                                            ,"AMBER Alert" = "AMBER"
                                            ,"Flash Flood" = "FlashFlood"
@@ -73,38 +76,45 @@ ui <- fluidPage(
     ),
     #### Instructions ####
     fluidRow(column(10, offset = 1,
-        p("The map below is a county-by county list
-            of Wireless Emergency Alert (WEA)
-            messages backed up by the PBS WARN system.
-            Mouse over a county to see how many alerts
-            PBS WARN has protected since May, 2014.
-            Select a type of alert to filter the list.
-            Click on a county to see a list of all
-            WARN alerts passed by PBS and your local
-            Non-Commercial Station."),
-        p("Don't forget to explore Alaska, Hawaii, and Puerto Rico!")
-    )
-    ),
+        p("The map below shows the number of Wireless Emergency Alert (WEA)
+            messages transmitted by the PBS WARN system to each county in the.
+            United States between May 20, 2014 and ",
+            textOutput("last_alert", inline = TRUE),
+          "."),
+        p("These messages are received by PBS from FEMA's IPAWS-OPEN alert
+          aggregator and transmitted from every public television station in the
+          country to cellular mobile service providers to protect against a failure of
+          the cellular company's internet connection to IPAWS-OPEN."),
+        p("This information is provided as a convenience for responders and the public.
+          It is not guaranteed to be complete or error-free. Geographic outlines reflect
+          the orignators' input target areas, actual alert coverage depends on cellular
+          system implementation and may vary."),
+        p("For a map of active alerts, please visit ",
+          a('warn.pbs.org', href='http://warn.pbs.org'),
+          ". For more information about this map or PBS WARN, please contact",
+          a('amsilverman@pbs.org', href='mailto://amsilverman@pbs.org'),
+          '.'))),
 
-  # Show choropleth of selected alerts
+  # choropleth map
   fluidRow(
-    column(10, offset = 1,
-        leafletOutput("map", height = "600px")
-        )
-  ),#/fluidRow
+      column(10, offset = 1,
+      h4(textOutput("type", inline = TRUE),
+               "Warnings:",
+               textOutput("county_name", inline = TRUE))
+      )),
+  fluidRow(
+    column(6, offset = 1,
+        leafletOutput("map", height = "600px")),
 
   #### list of alerts ####
-  fluidRow(
-    column(width = 10, offset = 1,
-         h4(textOutput("type", inline = TRUE),
-            "Warnings:",
-            textOutput("county_name", inline = TRUE)
-            )),
-    column(width = 10, offset = 1,
+
+    column(width = 5,
+         # plotOutput("pie"), #Nobody likes pie charts!
          DT::dataTableOutput("events")
     )
   )
 )
+
 # end ui
 
 
@@ -118,7 +128,6 @@ server <- function(input, output, session) {
 
 # Reactive variable fd containing (f)iltered (d)ata
 fd <- reactive({
-    #browser()
   allCounties %>%
             mutate_(inst = input$alertType)
       })
@@ -129,11 +138,16 @@ fd <- reactive({
   output$county_name <- renderText("Full Country")
   output$events <- renderText("Please select a county and alert type.")
 
+# Most recent alert
+  output$last_alert <- renderText(paste0(month(max(msg$rec_time),label = TRUE),' ',
+                                        day(max(msg$rec_time)),', ',
+                                        year(max(msg$rec_time))))
+
  # Base Map
 output$map <- renderLeaflet({
     leaflet() %>%
     addProviderTiles(providers$Stamen.TonerLite) %>%
-    fitBounds(-126.25,23.24,-66.67,49.61)
+    setView(-98.5, 40,zoom = 4)
 })
 
 observeEvent(input$alertType, {
@@ -197,14 +211,45 @@ observeEvent(input$alertType, {
  # Get the county and state name for that GEOID
      observeEvent(input$map_shape_click, {
        output$county_name <- renderText({
-         loc_id = click_data$clickedShape$id %>%
-               print()
+         loc_id = click_data$clickedShape$id #%>%
+               # print()
          filter(allCounties, GEOID == loc_id) %>%
          select(NAME, description, iso_3166_2) %>%
          st_set_geometry(NULL) %>%
          paste(collapse = " ")
        })
     })
+ # Create a pie chart of alert types for selected area
+ # Commented out because nobody likes pie charts.
+     # output$pie <- renderPlot({
+     #     smry <- allCounties %>%
+     #         as.data.frame() %>%
+     #         ungroup() %>%
+     #         select(AMBER:Tornado) %>%
+     #         summarize_all(sum, na.rm = TRUE) %>%
+     #         as_vector()
+     #     lbls <- paste(names(smry)
+     #                   , round(smry/sum(smry)*100,digits = 2)
+     #                   , "%")
+     #         pie(smry, labels = lbls, radius = .5)
+     # })
+     #
+     # observeEvent(input$map_shape_click, {
+     #     output$pie <- renderPlot({
+     #        loc_id = click_data$clickedShape$id
+     #        smry <- filter(allCounties, GEOID == loc_id) %>%
+     #             as.data.frame() %>%
+     #             ungroup() %>%
+     #             select(AMBER:Tornado) %>%
+     #             as_vector()
+     #        lbls <- paste(names(smry)
+     #                      , round(smry/sum(smry)*100,digits = 2)
+     #                      , "%")
+     #        pie(smry, labels = lbls)
+     #             pie()
+     #
+     #     })
+     # })
 
 
  #Create a table with all the events of type in that geoid
@@ -224,7 +269,7 @@ observeEvent(input$alertType, {
      tmptbl <- tmptbl %>%
          distinct(msg_id,.keep_all = TRUE) %>%
          arrange(desc(rec_time)) %>%
-         transmute(`Alert Received` = rec_time
+         transmute(`Date` = rec_time
                        , `Message Text` = str_replace_all(wea, "\'", "")
                        , `Affected Areas` = areas)
 
@@ -244,11 +289,14 @@ observeEvent(input$alertType, {
                               "}")
                       )),
                       pageLength = 5,
-                      lengthMenu = c(5, 10, 15, 20)),
-                  class = 'row-border stripe nowrap compact',
+                      lengthMenu = c(5, 10, 25, 50)),
+                  class = 'stripe compact',
                   callback = JS('table.draw(false);'),
-                  rownames = FALSE) %>%
-        formatDate(1)
+                  rownames = FALSE,
+                  autoHideNavigation = TRUE,
+                  selection = "single") %>%
+        formatStyle(1:3, verticalAlign = 'top') %>%
+        formatDate(1, 'toLocaleDateString')
      }
     )
 }

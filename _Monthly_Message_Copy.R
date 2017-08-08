@@ -11,11 +11,27 @@ require(lubridate)
 NewCMASImport <- function() { #copies new messages into main sheet
         raw <- gs_key("1GnchiRm2TXgQ1TpTGcsCIGggIjEIsd6TeuVyY_s4a3U") #CMAS Alerts
         full <- gs_key("1Xw4JefUCS4HHQ0KpvKhr-DjklqzhH3_CeA-zhoAuQfI") #CMAS_Alerts_Processed
-        msg <- gs_read(raw)
-        msg <- tail(msg, 240)
-        gs_add_row(ss = full, ws = 1, input = msg, verbose = TRUE) -> howmany
-        print(length(howmany))
-    }
+
+        msg_last <- gs_read(full) %>%
+            select(Rec_Time) %>%
+            tail(1) %>%
+            as.character() %>%
+            mdy_hms()
+
+        msg_new <- gs_read(raw) %>%
+            mutate(Rec_Time = mdy_hm(Rec_Time)) %>%
+            filter(Rec_Time > msg_last) %>%
+            mutate(Rec_Time =
+                paste0(
+                month(Rec_Time,label = TRUE,abbr = FALSE), " ",
+                day(Rec_Time), ", ",
+                year(Rec_Time)," at ",
+                str_pad(hour(Rec_Time),width = 2,side = "left", pad = "0"), ":",
+                str_pad(minute(Rec_Time),width = 2,side = "left", pad = "0")
+            ))
+
+        gs_add_row(ss = full, ws = 1, input = msg_new, verbose = TRUE)
+        }
 
 
 
