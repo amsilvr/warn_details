@@ -1,8 +1,9 @@
 library(leaflet)
 library(tidyverse)
+library(lubridate)
+library(stringr)
 library(rgdal)
 library(sf)
-library(htmlTable)
 
 if (!exists("alert_tally")) {
     source("CMAS_Clean_shiny.R", echo = TRUE)
@@ -16,9 +17,12 @@ if (!file.exists("data/county_shape_file.zip")) {
 c_shp <- unzip("data/county_shape_file.zip", exdir = "data")
 
 counties_sf <- read_sf(c_shp[grep("shp$", c_shp)]) %>% #pulls the shp file from the zip
+    as.data.frame() %>%
     left_join(state_iso) %>%
-    st_transform('+proj=longlat +datum=WGS84') %>%
-    inner_join(lsad_lookup())
+    inner_join(lsad_lookup()) %>%
+    select(STATEFP, COUNTYFP, GEOID, NAME, description, iso_3166_2, geometry) %>%
+    st_sf() %>%
+    st_transform('+proj=longlat +datum=WGS84')
 
 long_county <- counties_sf %>%
     transmute(GEOID
@@ -30,10 +34,13 @@ long_county <- counties_sf %>%
 ### Remove na's ###
 long_county[is.na(long_county)] <- 0
 
-
-
-bins <- c(0, 1, 3, 5, 10, 20, 30, 40, 80, 205)
-pal <- colorBin("RdPu", domain = NULL, bins = bins, pretty = TRUE)
+#bins <- c(0, 1, 3, 5, 10, 20, 30, 40, 80, 205)
+bins <- c(1,5,10,15,20,25,30,40,50,210)
+pal <- colorBin("YlOrRd",
+                domain = NULL,
+                bins = bins,
+                pretty = TRUE,
+                na.color = "#fefefe")
 
 p <- leaflet() %>%
         addTiles() %>%
