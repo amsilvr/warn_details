@@ -299,8 +299,16 @@ if (!exists("fips_msg")) {
    fips_msg <- flatten_fips(msg2)
 }
 
-
-alert_tally <- left_join(msg2, fips_msg) %>%
+tally_alerts <- function(df = msg2
+                         , fips_msg = fips_msg
+                         , start = NULL
+                         , end = NULL) {
+    if(is.null(start)) start = min(df$rec_time)
+    if(is.null(end)) end = max(df$rec_time)
+    df %>%
+        filter(rec_time >= start) %>%
+        filter(rec_time <= end) %>%
+        left_join(fips_msg) %>%
         select(msg_id, GEOID, type) %>%
         group_by(GEOID, type) %>%
         tally() %>%
@@ -308,4 +316,5 @@ alert_tally <- left_join(msg2, fips_msg) %>%
         spread(WEATYPE, WEANUM, fill = "0",drop = TRUE, convert = TRUE) %>%
         mutate(Total = AMBER + FlashFlood
                + Hurricane + Other + Tornado)
-
+                         }
+alert_tally <- tally_alerts(msg2, fips_msg)

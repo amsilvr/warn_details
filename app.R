@@ -1,4 +1,13 @@
-# Setup
+#### Remaining to-do list ####
+
+# Button to go to full country
+# Dropdown to select specific state
+# Map changes on date selection as well as type selection
+# Dynamic coloring for legend and map
+# Histogram of alert types
+# Click an alert in the table and have it highlighted on the map
+
+#### Setup ####
 
 library(shiny)
 library(tidyverse)
@@ -16,7 +25,7 @@ library(DT)
 
 # Download Shapefiles
 #
-if (!exists("alert_tally")) {
+if (!exists("talley_alerts")) {
   source("CMAS_Clean_shiny.R", echo = TRUE)
 }
 countyshapes_url <- "http://www2.census.gov/geo/tiger/GENZ2016/shp/cb_2016_us_county_20m.zip"
@@ -49,7 +58,7 @@ pal <- colorBin("YlOrRd",
                 pretty = TRUE,
                 na.color = "#fefefe")
 
-# Define UI for application that draws a histogram
+### Define UI ####
 ui <- fluidPage(
   #theme = shinytheme('darkly'),
    # Application title
@@ -64,39 +73,51 @@ ui <- fluidPage(
              .h {text-align:center!important;}
              td { vertical-aligh:top!important; }"),
 
-     column(5, offset = 1, #Title and instructions
+     column(4, offset = 1, #Title and instructions
           h1("WARN Alerts by County")
           ),
+    column(3, #Date Filter and Country Reset
+           dateRangeInput(inputId = "dateRange", label = "Date Range"
+                       ,start = date(min(msg2$rec_time))
+                       ,end = date(max(msg2$rec_time))
+                       ,format = 'M d, yyyy')
 
-    column(5, offset = 1, # HTML Selector menu
-        h4(selectInput(inputId = "alertType" , label = "Alert Type"
+           ),
+
+    column(4, # HTML Selector menu
+        selectInput(inputId = "alertType" , label = "Alert Type"
                               ,choices = c("Total" = "Total"
                                            ,"AMBER Alert" = "AMBER"
                                            ,"Flash Flood" = "FlashFlood"
                                            ,"Hurricane" = "Hurricane"
                                            ,"Tornado" = "Tornado"
                                            ,"Other" = "Other")
-        ))
+        )
     ),
     #### Instructions ####
     fluidRow(column(10, offset = 1,
         p("The map below shows the number of Wireless Emergency Alert (WEA)
-            messages transmitted by the PBS WARN system to each county in the.
+            messages transmitted by the PBS WARN system to each county in the
             United States between May 20, 2014 and ",
-            textOutput("last_alert", inline = TRUE),
+           ## Change the dates here to reflect the input$dateRange ##
+           textOutput("last_alert", inline = TRUE),
           "."),
-        p("These messages are received by PBS from FEMA's IPAWS-OPEN alert
-          aggregator and transmitted from every public television station in the
-          country to cellular mobile service providers to protect against a failure of
+        p("Messages are received by PBS from FEMA's IPAWS-OPEN alert
+          aggregator and transmitted using the PBS Internconnection
+          and then from every public television station in the
+          country to cellular mobile service providers. This alternate path
+          protects WEA messages against a failure of
           the cellular company's internet connection to IPAWS-OPEN."),
-        p("This information is provided as a convenience for responders and the public.
+        p("This map is provided as a convenience for responders, researchers, and the public.
           It is not guaranteed to be complete or error-free. Geographic outlines reflect
           the orignators' input target areas, actual alert coverage depends on cellular
           system implementation and may vary."),
-        p("For a map of active alerts, please visit ",
+        p("For a map of current alerts, please visit ",
           a('warn.pbs.org', href='http://warn.pbs.org'),
-          ". For more information about this map or PBS WARN, please contact",
-          a('amsilverman@pbs.org', href='mailto://amsilverman@pbs.org'),
+          ". For more information about PBS WARN, please visit ",
+          a('pbs.org/about/WARN', href='http://www.pbs.org/about/contact-information/warn/'),
+         " or email ",
+           a('Aaron Silvermana', href='mailto://amsilverman@pbs.org'),
           '.'))),
 
   # choropleth map
@@ -122,16 +143,21 @@ ui <- fluidPage(
 # end ui
 
 
-allCounties <- left_join(counties_sf, alert_tally)
-allCounties[is.na(allCounties)] <- 0
+
 
 
 # Define server logic required to draw a choropleth
 server <- function(input, output, session) {
   output$type <- renderText(input$alertType)
 
+
 # Reactive variable fd containing (f)iltered (d)ata
 fd <- reactive({
+
+  allCounties <- left_join(counties_sf, tally_alerts(msg2, fips_msg,
+                                                       input$dateRange[1],
+                                                       input$dateRange[2]))
+  allCounties[is.na(allCounties)] <- 0
   allCounties %>%
             mutate_(inst = input$alertType)
       })
@@ -260,8 +286,8 @@ observeEvent(input$alertType, {
    output$events <- renderDataTable({
      county_events = click_data$clickedShape$id
      alert_type = input$alertType
-      # print(county_events)
-      # print(input$alertType)
+       print(county_events)
+       print(input$dateRange)
      #### What are we looking to put in our table?
      #### Whole country or single county?
      if (is.null(county_events)) {tmptbl <- fips_msg
@@ -275,7 +301,10 @@ observeEvent(input$alertType, {
          arrange(desc(rec_time)) %>%
          transmute(`Date` = rec_time
                        , `Message Text` = str_replace_all(wea, "\'", "")
-                       , `Affected Areas` = areas)
+                       , `Affected Areas` = areas) %>%
+         filter(Date >= min(input$dateRange)) %>%
+         filter(Date <= max(input$dateRange) + 1)
+
 
 ###### Place Output into datatable ######
         datatable(tmptbl,
