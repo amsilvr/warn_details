@@ -16,7 +16,7 @@ NewCMASImport <- function() { #copies new messages into main sheet
             select(Rec_Time) %>%
             tail(1) %>%
             as.character() %>%
-            mdy_hms()
+            mdy_hm()
 
         msg_new <- gs_read(raw) %>%
             mutate(Rec_Time = mdy_hm(Rec_Time)) %>%
@@ -26,8 +26,8 @@ NewCMASImport <- function() { #copies new messages into main sheet
                 month(Rec_Time,label = TRUE,abbr = FALSE), " ",
                 day(Rec_Time), ", ",
                 year(Rec_Time)," at ",
-                str_pad(hour(Rec_Time),width = 2,side = "left", pad = "0"), ":",
-                str_pad(minute(Rec_Time),width = 2,side = "left", pad = "0")
+                stringr::str_pad(hour(Rec_Time),width = 2,side = "left", pad = "0"), ":",
+                stringr::str_pad(minute(Rec_Time),width = 2,side = "left", pad = "0")
             ))
 
         gs_add_row(ss = full, ws = 1, input = msg_new, verbose = TRUE)

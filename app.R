@@ -10,9 +10,9 @@ library(DT)
 
 ## Centers for all states
 
-state_list <- tibble(name = state.name
-                     , ctrx = state.center$x
-                     , ctry = state.center$y)
+# state_list <- tibble(name = state.name
+#                      , ctrx = state.center$x
+#                      , ctry = state.center$y)
 
 # Download Shapefiles
 #
@@ -28,6 +28,10 @@ if (!file.exists("data/county_shape_file.zip")) {
   c_shp <- unzip("data/county_shape_file.zip", exdir = "data")
 
 # Read the file with sf and add the proper crs code for this projection
+states <- tibble(long = state.center[[1]]
+                 ,lat = state.center[[2]])
+
+
 
 counties_sf <- read_sf(c_shp[grep("shp$", c_shp)]) %>%
   as.data.frame() %>% #to fix July 25 problem with the join.sf methods
@@ -37,7 +41,7 @@ counties_sf <- read_sf(c_shp[grep("shp$", c_shp)]) %>%
   st_sf() %>%
   st_transform('+proj=longlat +datum=WGS84')
 
-bins <- c(1,5,10,15,20,25,30,40,50,210)#even distribution
+bins <- c(1,5,10,15,20,25,30,40,50,max(alert_tally$Total))#even distribution
 #bins <- c(1, 24, 47, 71, 93, 117, 140, 164, 187, 210) # even intervals
 pal <- colorBin("YlOrRd",
                 domain = NULL,

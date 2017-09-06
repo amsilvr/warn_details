@@ -3,9 +3,9 @@ title: warn_details
 account: silverman
 server: shinyapps.io
 appId: 203247
-bundleId: 933232
+bundleId: 951367
 url: https://silverman.shinyapps.io/warn_details/
-when: 1502224717.68963
+when: 1503503895.12965
 asMultiple: FALSE
 asStatic: FALSE
 ignoredFiles: .RData|_Monthly_Message_Copy.R|leaflet.R|retrieve_xml.R|data/cb_2016_us_county_20m.cpg|data/cb_2016_us_county_20m.dbf|data/cb_2016_us_county_20m.prj|data/cb_2016_us_county_20m.shp|data/cb_2016_us_county_20m.shp.ea.iso.xml|data/cb_2016_us_county_20m.shp.iso.xml|data/cb_2016_us_county_20m.shp.xml|data/cb_2016_us_county_20m.shx|data/county_shape_file.zip|temp/datatable_format_template.R|temp/server.R|temp/ui.R
