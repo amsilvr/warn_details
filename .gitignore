@@ -6,3 +6,4 @@ data
 packrat/src/
 .RData
 .httr-oauth
+gz_2010_us_040_00_500k.zip

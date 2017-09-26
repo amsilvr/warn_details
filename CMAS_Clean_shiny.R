@@ -84,15 +84,20 @@ load_msgs <- function() {
 
 map_states <- function() {
   state_url <- "http://www2.census.gov/geo/tiger/GENZ2016/shp/cb_2016_us_state_20m.zip"
+
+
+if (!dir.exists("data")) {dir.create("data")}
+if (!file.exists("data/state_shape_file.zip")) {
+    download.file(state_url
+                  , destfile = "data/state_shape_file.zip")
+    }
+t <- unzip("data/state_shape_file.zip", exdir = "data")
+# Read the file with sf
+st_read(t[grep("shp$",t)], stringsAsFactors = FALSE) %>%
+    as_tibble() %>%
+    select(STATEFP, STUSPS, NAME, geometry)
 }
 
-state_iso <- read_csv("https://www2.census.gov/geo/docs/reference/codes/files/national_county.txt"
-                      , col_names = c("iso_3166_2"
-                                      , "STATEFP"
-                                      , "COUNTYFP"
-                                      , "name","x")) %>%
-    select(2,1) %>%
-    unique()
 
 map_counties <- function() {
   # Download Shapefiles
@@ -103,20 +108,20 @@ map_counties <- function() {
                   , destfile = "data/county_shape_file.zip")
   }
     t <- unzip("data/county_shape_file.zip", exdir = "data")
+    state_sf <- map_states()
    # Read the file with sf
     st_read(t[grep("shp$",t)], stringsAsFactors = FALSE) %>%
-      as.data.frame() %>%
-      left_join(state_iso, by = "STATEFP") %>%
-      group_by(STATEFP, COUNTYFP) %>%
-        mutate(GEOID = GEOID,
-          NAME = NAME %>%
-          str_replace_all("ñ",replacement = "n") %>%
-          str_replace_all("á",replacement = "a") %>%
-          str_replace_all("ü",replacement = "u") %>%
-          str_replace_all("ó",replacement = "o") %>%
-          str_replace_all("í",replacement = "i")
-        ) %>%
-      st_sf()
+      as_tibble() %>%
+      left_join(state_sf, suffix = c('county','state'),by = "STATEFP") %>%
+      select(STATEFP,
+           COUNTYFP,
+           GEOID,
+           NAME = NAMEcounty,
+           LSAD,
+           iso_3166_2 = STUSPS,
+           geometrycounty) %>%
+    group_by(STATEFP, COUNTYFP) %>%
+    st_sf(sf_column_name = 'geometrycounty')
     }
 
 
@@ -171,7 +176,8 @@ area_find <- function(area_list) {
         str_replace_all(pattern = "PR lsabela", "PR Isabela") %>%
         str_replace_all(pattern = "TX wall", "TX Wall") %>%
         str_replace_all(pattern = "TX hell", "TX Hall") %>%
-        str_replace_all(pattern = "MT Lewis Clark", "MT Lewis and Clark")
+        str_replace_all(pattern = "MT Lewis Clark", "MT Lewis and Clark") %>%
+        str_replace_all(pattern = "SD Shannon", "SD Oglala Lakota") # Name Change effective 5/1/2015
        return(area_clean)
 
 }
@@ -237,6 +243,19 @@ flatten_fips <- function(msg) {
                       grepl("KY Carter city",areas$areaname) ~ "21043",
                       grepl("VA Roanoke city",areas$areaname) ~ "51770",
                       grepl("MN McLeod city",areas$areaname) ~ "27085",
+                      ## Account for accents in county names ##
+                      grepl("NM Dona Ana", areas$areaname) ~ "35013", ## Account for ñ
+                      grepl("PR Anasco", areas$areaname) ~ "72011", ## Account for ñ
+                      grepl("PR Catano", areas$areaname) ~ "72033", ## Account for ñ
+                      grepl("PR Penuelas", areas$areaname) ~ "72111", ## Account for ñ
+                      grepl("PR Bayamon", areas$areaname) ~ "72021", ## Account for ó
+                      grepl("PR Canovanas", areas$areaname) ~ "72029", ## Account for ó
+                      grepl("PR Guanica", areas$areaname) ~ "72055", ## Account for á
+                      grepl("PR Mayaguez", areas$areaname) ~ "72097", ## Account for ü
+                      grepl("PR Rincon", areas$areaname) ~ "72117", ## Account for ó
+                      grepl("PR San German", areas$areaname) ~ "72125", ## Account for á
+                      grepl("PR San Sebastian", areas$areaname) ~ "72131", ## Account for á
+
                       TRUE ~ areas$GEOID
                 )
       )    %>%
@@ -272,9 +291,9 @@ classify_message <- function(msg) {
     )
 }
 
-#####################
-## Run Functions  ###
-#####################
+######################
+## Run Functions  ####
+
 
 # If msg isn't in memory, check to see if we have already
 # downloaded the data and cleaned it today. If so, get

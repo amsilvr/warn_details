@@ -1,9 +1,10 @@
 #### Remaining to-do list ####
 
-# Button to go to full country
-# Dropdown to select specific state
+# Dropdown to go to full country
+# x Dropdown to select specific state
+##  change on state dropdown should select whole state for tabular results
 # Map changes on date selection as well as type selection
-# Dynamic coloring for legend and map
+# x Dynamic coloring for legend and map
 # Histogram of alert types
 # Click an alert in the table and have it highlighted on the map
 
@@ -25,7 +26,7 @@ library(DT)
 
 # Download Shapefiles
 #
-if (!exists("talley_alerts")) {
+if (!exists("alert_tally")) {
   source("CMAS_Clean_shiny.R", echo = TRUE)
 }
 countyshapes_url <- "http://www2.census.gov/geo/tiger/GENZ2016/shp/cb_2016_us_county_20m.zip"
@@ -37,26 +38,20 @@ if (!file.exists("data/county_shape_file.zip")) {
   c_shp <- unzip("data/county_shape_file.zip", exdir = "data")
 
 # Read the file with sf and add the proper crs code for this projection
-states <- tibble(long = state.center[[1]]
-                 ,lat = state.center[[2]])
+# states <- tibble(long = state.center[[1]]
+#                  ,lat = state.center[[2]])
 
-
+state_sf <- map_states()
 
 counties_sf <- read_sf(c_shp[grep("shp$", c_shp)]) %>%
   as.data.frame() %>% #to fix July 25 problem with the join.sf methods
-  left_join(state_iso) %>%
+  #left_join(state_sf) %>%
   inner_join(lsad_lookup()) %>%
-    select(STATEFP, COUNTYFP, GEOID, NAME, description, iso_3166_2, geometry) %>%
-  st_sf() %>%
+    select(STATEFP, COUNTYFP, GEOID, NAME, description, geometry) %>%
+    left_join(state_sf %>% select(STATEFP, STUSPS)) %>%
+  st_sf(sf_column_name = 'geometry') %>%
   st_transform('+proj=longlat +datum=WGS84')
 
-bins <- c(1,5,10,15,20,25,30,40,50,max(alert_tally$Total))#even distribution
-#bins <- c(1, 24, 47, 71, 93, 117, 140, 164, 187, 210) # even intervals
-pal <- colorBin("YlOrRd",
-                domain = NULL,
-                bins = bins,
-                pretty = TRUE,
-                na.color = "#fefefe")
 
 ### Define UI ####
 ui <- fluidPage(
@@ -73,10 +68,16 @@ ui <- fluidPage(
              .h {text-align:center!important;}
              td { vertical-aligh:top!important; }"),
 
-     column(4, offset = 1, #Title and instructions
-          h1("WARN Alerts by County")
+
+    fluidRow(column(8, offset = 1, #Title
+          h1("WARN Alerts by County"),
+          h2(textOutput("type", inline = TRUE),
+                "Warnings:",
+                textOutput("county_name", inline = TRUE))
+          )
           ),
-    column(3, #Date Filter and Country Reset
+    fluidRow( #Controls
+        column(3, offset = 1, #Date Filter
            dateRangeInput(inputId = "dateRange", label = "Date Range"
                        ,start = date(min(msg2$rec_time))
                        ,end = date(max(msg2$rec_time))
@@ -84,7 +85,7 @@ ui <- fluidPage(
 
            ),
 
-    column(4, # HTML Selector menu
+        column(3, # HTML Selector menu
         selectInput(inputId = "alertType" , label = "Alert Type"
                               ,choices = c("Total" = "Total"
                                            ,"AMBER Alert" = "AMBER"
@@ -92,8 +93,21 @@ ui <- fluidPage(
                                            ,"Hurricane" = "Hurricane"
                                            ,"Tornado" = "Tornado"
                                            ,"Other" = "Other")
-        )
-    ),
+            )
+
+        ),
+        column(3, # State selector
+               selectInput(inputId = 'state', label = 'State or Region',
+                           list(`Full Country` = c('Full Country', 'Continental US'),
+                                 `State` =  state_sf %>%
+                                    select(NAME) %>%
+                                    arrange(NAME))))
+        ),
+        # ,
+        # column(1, # Update button
+        #        actionButton(inputId = "update", label = "Update Map")
+        # )
+
     #### Instructions ####
     fluidRow(column(10, offset = 1,
         p("The map below shows the number of Wireless Emergency Alert (WEA)
@@ -117,15 +131,15 @@ ui <- fluidPage(
           ". For more information about PBS WARN, please visit ",
           a('pbs.org/about/WARN', href='http://www.pbs.org/about/contact-information/warn/'),
          " or email ",
-           a('Aaron Silvermana', href='mailto://amsilverman@pbs.org'),
+           a('Aaron Silverman', href='mailto://amsilverman@pbs.org'),
           '.'))),
 
   # choropleth map
   fluidRow(
-      column(10, offset = 1,
-      h4(textOutput("type", inline = TRUE),
-               "Warnings:",
-               textOutput("county_name", inline = TRUE))
+      column(10, offset = 1#,
+      # h4(textOutput("type", inline = TRUE),
+      #          "Warnings:",
+      #          textOutput("county_name", inline = TRUE))
       )),
   fluidRow(
     column(6, offset = 1,
@@ -161,6 +175,8 @@ fd <- reactive({
   allCounties %>%
             mutate_(inst = input$alertType)
       })
+
+
 # Reactive variable containing click_data
   click_data <- reactiveValues(clickedMarker = NULL)
 
@@ -173,14 +189,50 @@ fd <- reactive({
                                         day(max(msg$rec_time)),', ',
                                         year(max(msg$rec_time))))
 
- # Base Map
+ # Base Map ####
 output$map <- renderLeaflet({
     leaflet() %>%
     addProviderTiles(providers$Stamen.TonerLite) %>%
+        addPolygons(data = st_sf(state_sf),
+                    layerId = 'StateBorders',
+                    color = '#000',
+                    weight = 2,
+                    fill = FALSE) %>%
     setView(-98.5, 40,zoom = 4)
 })
 
+observeEvent(input$state,{
+    quostate <- quo(input$state)
+    print(input$state)
+    if (input$state == "Full Country"){
+        bounds <- c(-124.784,-66.951, 39.345,24.743)
+    } else {
+        bounds <- state_sf %>%st_sf %>%
+            filter(NAME == !!quostate) %>%
+            select(geometry) %>%
+
+            st_bbox()
+    }
+    print(bounds)
+     leafletProxy('map') %>%
+        fitBounds(lng1 = bounds[[1]],
+                  lat1 = bounds[[2]],
+                  lng2 = bounds[[3]],
+                  lat2 = bounds[[4]]
+                  )
+
+})
+ # Alert Type ####
+
 observeEvent(input$alertType, {
+    # bins and pallette
+    # bins and pallette
+    bins <- c(unique(quantile(fd()$inst, probs = seq(0,1,.12))),max(fd()$inst))
+    pal <- colorBin("YlOrRd",
+                    domain = NULL,
+                    bins = bins,
+                    pretty = TRUE,
+                    na.color = "#fefefe")
     leafletProxy('map') %>%
     clearShapes() %>%
     addPolygons(data = fd()
@@ -192,7 +244,7 @@ observeEvent(input$alertType, {
                                   ," "
                                   ,description #lookup table for lsad
                                   ,", "
-                                  ,iso_3166_2
+                                  ,STUSPS
                                   ,":</strong><br />"
                                   ,inst
                                   ," "
@@ -214,9 +266,10 @@ observeEvent(input$alertType, {
                       dashArray = "",
                       fillOpacity = 1,
                       bringToFront = FALSE)
+
         )
 })
-# Store the Map Boundaries on screen
+# Store the Map Boundaries on screen ####
  observeEvent(input$map1_bounds, {
    proxy <- leafletProxy("map") %>%
      setView(input$map1_bounds)
@@ -224,6 +277,13 @@ observeEvent(input$alertType, {
 
  # Re-title the legend
  observeEvent(input$alertType, {
+     # bins and pallette
+     bins <- c(unique(quantile(fd()$inst, probs = seq(0,1,.12))),max(fd()$inst))
+     pal <- colorBin("YlOrRd",
+                     domain = NULL,
+                     bins = bins,
+                     pretty = TRUE,
+                     na.color = "#fefefe")
       proxy <- leafletProxy("map", data = fd()) %>%
         clearControls() %>%
         addLegend(pal = pal
@@ -236,50 +296,24 @@ observeEvent(input$alertType, {
  # store the clicked county
  observeEvent(input$map_shape_click, {
     click_data$clickedShape <- input$map_shape_click
+    # leafletProxy("map", data = input$map_shape_click) %>%
+    #     addPolygons(layerId = 'mapSelection', stroke = TRUE, fill = FALSE)
   })
+
+
 
  # Get the county and state name for that GEOID
      observeEvent(input$map_shape_click, {
        output$county_name <- renderText({
          loc_id = click_data$clickedShape$id #%>%
                # print()
-         filter(allCounties, GEOID == loc_id) %>%
-         select(NAME, description, iso_3166_2) %>%
+         filter(fd(), GEOID == loc_id) %>%
+         select(NAME, description, STUSPS) %>%
          st_set_geometry(NULL) %>%
          paste(collapse = " ")
        })
     })
- # Create a pie chart of alert types for selected area
- # Commented out because nobody likes pie charts.
-     # output$pie <- renderPlot({
-     #     smry <- allCounties %>%
-     #         as.data.frame() %>%
-     #         ungroup() %>%
-     #         select(AMBER:Tornado) %>%
-     #         summarize_all(sum, na.rm = TRUE) %>%
-     #         as_vector()
-     #     lbls <- paste(names(smry)
-     #                   , round(smry/sum(smry)*100,digits = 2)
-     #                   , "%")
-     #         pie(smry, labels = lbls, radius = .5)
-     # })
-     #
-     # observeEvent(input$map_shape_click, {
-     #     output$pie <- renderPlot({
-     #        loc_id = click_data$clickedShape$id
-     #        smry <- filter(allCounties, GEOID == loc_id) %>%
-     #             as.data.frame() %>%
-     #             ungroup() %>%
-     #             select(AMBER:Tornado) %>%
-     #             as_vector()
-     #        lbls <- paste(names(smry)
-     #                      , round(smry/sum(smry)*100,digits = 2)
-     #                      , "%")
-     #        pie(smry, labels = lbls)
-     #             pie()
-     #
-     #     })
-     # })
+
 
 
  #Create a table with all the events of type in that geoid
