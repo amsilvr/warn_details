@@ -2,7 +2,7 @@ packrat/lib*/
 .Rhistory
 .Rproj.user
 temp
-data
+data/
 packrat/src/
 .RData
 .httr-oauth

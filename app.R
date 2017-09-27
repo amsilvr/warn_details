@@ -37,15 +37,10 @@ if (!file.exists("data/county_shape_file.zip")) {
 
   c_shp <- unzip("data/county_shape_file.zip", exdir = "data")
 
-# Read the file with sf and add the proper crs code for this projection
-# states <- tibble(long = state.center[[1]]
-#                  ,lat = state.center[[2]])
-
 state_sf <- map_states()
 
 counties_sf <- read_sf(c_shp[grep("shp$", c_shp)]) %>%
   as.data.frame() %>% #to fix July 25 problem with the join.sf methods
-  #left_join(state_sf) %>%
   inner_join(lsad_lookup()) %>%
     select(STATEFP, COUNTYFP, GEOID, NAME, description, geometry) %>%
     left_join(state_sf %>% select(STATEFP, STUSPS)) %>%
@@ -55,7 +50,6 @@ counties_sf <- read_sf(c_shp[grep("shp$", c_shp)]) %>%
 
 ### Define UI ####
 ui <- fluidPage(
-  #theme = shinytheme('darkly'),
    # Application title
   tags$style(type = "text/css",
           "html,
@@ -148,17 +142,12 @@ ui <- fluidPage(
   #### list of alerts ####
 
     column(width = 5,
-         # plotOutput("pie"), #Nobody likes pie charts!
          DT::dataTableOutput("events")
     )
   )
 )
 
 # end ui
-
-
-
-
 
 # Define server logic required to draw a choropleth
 server <- function(input, output, session) {
@@ -182,7 +171,7 @@ fd <- reactive({
 
 # Default County Name
   output$county_name <- renderText("Full Country")
-  output$events <- renderText("Please select a county and alert type.")
+  output$events <- renderText("Please select a state and alert type. Click on a county for a list of events.")
 
 # Most recent alert
   output$last_alert <- renderText(paste0(month(max(msg$rec_time),label = TRUE),' ',
@@ -205,22 +194,43 @@ observeEvent(input$state,{
     quostate <- quo(input$state)
     print(input$state)
     if (input$state == "Full Country"){
-        bounds <- c(-124.784,-66.951, 39.345,24.743)
+        bounds <- list(-179.1505, 17.91377, -66.885444, 49.384358)
+        # brdr <- state_sf %>% st_sf()
+    } else if(input$state == "Continental US"){
+        bounds <- list(-124.848974, 24.396308, -66.885444, 49.384358)
+        # brdr <- state_sf %>% st_sf()
+    } else if(input$state == "Alaska"){
+      bounds <- list(-179.1505, 51.2097, -129.9795, 71.4410)
+      brdr  <- state_sf %>%
+          filter(NAME == !!quostate) %>%
+          st_sf()
     } else {
-        bounds <- state_sf %>%st_sf %>%
+        bounds <- state_sf %>%st_sf() %>%
             filter(NAME == !!quostate) %>%
             select(geometry) %>%
-
             st_bbox()
+        brdr  <- state_sf %>%
+            filter(NAME == !!quostate) %>%
+            st_sf()
     }
     print(bounds)
-     leafletProxy('map') %>%
-        fitBounds(lng1 = bounds[[1]],
-                  lat1 = bounds[[2]],
-                  lng2 = bounds[[3]],
-                  lat2 = bounds[[4]]
-                  )
 
+         if(exists('brdr')) {
+            leafletProxy('map') %>%
+                addPolygons(data = brdr,layerId = 'stateSelection', color = '#000',weight = 3,fill = FALSE) %>%
+                 fitBounds(lng1 = bounds[[1]],
+                           lat1 = bounds[[2]],
+                           lng2 = bounds[[3]],
+                           lat2 = bounds[[4]]
+                 )
+         } else {
+             leafletProxy('map') %>%
+                 fitBounds(lng1 = bounds[[1]],
+                           lat1 = bounds[[2]],
+                           lng2 = bounds[[3]],
+                           lat2 = bounds[[4]]
+                 )
+         }
 })
  # Alert Type ####
 
@@ -231,7 +241,7 @@ observeEvent(input$alertType, {
     pal <- colorBin("YlOrRd",
                     domain = NULL,
                     bins = bins,
-                    pretty = TRUE,
+                    pretty = FALSE,
                     na.color = "#fefefe")
     leafletProxy('map') %>%
     clearShapes() %>%
@@ -355,7 +365,7 @@ observeEvent(input$alertType, {
                               "'<span title=\"' + data + '\">' + data.substr(0, 50) + '...</span>' : data;",
                               "}")
                       )),
-                      pageLength = 5,
+                      pageLength = 10,
                       lengthMenu = c(5, 10, 25, 50)),
                   class = 'stripe compact',
                   callback = JS('table.draw(false);'),
