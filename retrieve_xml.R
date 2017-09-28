@@ -43,7 +43,7 @@ cmac_s3 <- function(msg){
 
 library(XML)
 # Clean up csv artifacts and parse xml
-cmac <- read_file("data/cmacs_spool.txt") %>%
+cmac <- read_file("data/hk_sample.txt") %>%
   {paste0(str_sub(., end = 56)
          #leave first xml tag
       , "<CMAC_Alerts>" #create root node

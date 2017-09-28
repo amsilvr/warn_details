@@ -193,13 +193,11 @@ output$map <- renderLeaflet({
 observeEvent(input$state,{
     quostate <- quo(input$state)
     print(input$state)
-    if (input$state == "Full Country"){
+    if (input$state == "Full Country") {
         bounds <- list(-179.1505, 17.91377, -66.885444, 49.384358)
-        # brdr <- state_sf %>% st_sf()
-    } else if(input$state == "Continental US"){
+    } else if(input$state == "Continental US") {
         bounds <- list(-124.848974, 24.396308, -66.885444, 49.384358)
-        # brdr <- state_sf %>% st_sf()
-    } else if(input$state == "Alaska"){
+    } else if(input$state == "Alaska") {
       bounds <- list(-179.1505, 51.2097, -129.9795, 71.4410)
       brdr  <- state_sf %>%
           filter(NAME == !!quostate) %>%
@@ -303,16 +301,33 @@ observeEvent(input$alertType, {
                 , position = "bottomleft")
     })
 
- # store the clicked county
- observeEvent(input$map_shape_click, {
-    click_data$clickedShape <- input$map_shape_click
-    # leafletProxy("map", data = input$map_shape_click) %>%
-    #     addPolygons(layerId = 'mapSelection', stroke = TRUE, fill = FALSE)
-  })
+ # store the selected state
+ # observeEvent(input$state, {
+ #     st_id <- enquo(input$state)
+ #     loc_id <- state_sf %>%
+ #             filter(NAME == !!st_id) %>%
+ #             select(STATEFP)
+ #
+ # # })
+ # #
+ # # # Get the state name/full country for the selected state
+ # #     observeEvent(input$map_shape_click, {
+ #       output$county_name <- renderText({
+ #                # print()
+ #         state_sf %>%
+ #               filter(NAME == !!st_id) %>%
+ #               select(NAME)
+ #       })
+ #    })
 
 
-
- # Get the county and state name for that GEOID
+     # store the clicked county
+     observeEvent(input$map_shape_click, {
+         click_data$clickedShape <- input$map_shape_click
+         # leafletProxy("map", data = input$map_shape_click) %>%
+         #     addPolygons(layerId = 'mapSelection', stroke = TRUE, fill = FALSE)
+     })
+     # Get the county and state name for that GEOID
      observeEvent(input$map_shape_click, {
        output$county_name <- renderText({
          loc_id = click_data$clickedShape$id #%>%
@@ -329,13 +344,14 @@ observeEvent(input$alertType, {
  #Create a table with all the events of type in that geoid
    output$events <- renderDataTable({
      county_events = click_data$clickedShape$id
+     selectedState = input$state
      alert_type = input$alertType
        print(county_events)
        print(input$dateRange)
      #### What are we looking to put in our table?
      #### Whole country or single county?
-     if (is.null(county_events)) {tmptbl <- fips_msg
-     } else {tmptbl <- fips_msg %>% filter(GEOID == county_events)}
+     if (selectedState == 'Full Country') {tmptbl <- fips_msg
+     } else{tmptbl <- fips_msg %>% filter(GEOID == county_events)}
      if (alert_type == "Total") {tmptbl <- tmptbl %>% left_join(msg2)
      } else {tmptbl <- tmptbl %>% left_join(msg2) %>%
                filter(type == alert_type)}
