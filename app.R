@@ -171,7 +171,8 @@ fd <- reactive({
 
 # Default County Name
   output$county_name <- renderText("Full Country")
-  output$events <- renderText("Please select a state and alert type. Click on a county for a list of events.")
+  output$events <- renderText("Please select a state and alert type.
+                              Click on a county for a list of events in that county.")
 
 # Most recent alert
   output$last_alert <- renderText(paste0(month(max(msg$rec_time),label = TRUE),' ',
@@ -182,58 +183,85 @@ fd <- reactive({
 output$map <- renderLeaflet({
     leaflet() %>%
     addProviderTiles(providers$Stamen.TonerLite) %>%
-        addPolygons(data = st_sf(state_sf),
-                    layerId = 'StateBorders',
-                    color = '#000',
-                    weight = 2,
-                    fill = FALSE) %>%
+        # addPolygons(data = st_sf(state_sf),
+        #             layerId = 'StateBorders',
+        #             color = '#000',
+        #             weight = 2,
+        #             fill = FALSE) %>%
     setView(-98.5, 40,zoom = 4)
 })
 
 observeEvent(input$state,{
     quostate <- quo(input$state)
-    print(input$state)
+    click_data$clickedShape$id <- NULL
+
+    output$county_name <- renderText({
+        input$state
+    })
+
+
+    ## Clear county if we select a state or the country ##
+    #click_data <- clickedMarker = NULL
+
     if (input$state == "Full Country") {
         bounds <- list(-179.1505, 17.91377, -66.885444, 49.384358)
+        leafletProxy('map') %>%
+            removeShape(layerId = 'stateSelection') %>%
+            fitBounds(lng1 = bounds[[1]],
+                      lat1 = bounds[[2]],
+                      lng2 = bounds[[3]],
+                      lat2 = bounds[[4]])
     } else if(input$state == "Continental US") {
         bounds <- list(-124.848974, 24.396308, -66.885444, 49.384358)
+        leafletProxy('map') %>%
+            removeShape(layerId = 'stateSelection') %>%
+            fitBounds(lng1 = bounds[[1]],
+                      lat1 = bounds[[2]],
+                      lng2 = bounds[[3]],
+                      lat2 = bounds[[4]])
     } else if(input$state == "Alaska") {
       bounds <- list(-179.1505, 51.2097, -129.9795, 71.4410)
       brdr  <- state_sf %>%
-          filter(NAME == !!quostate) %>%
+          filter(NAME == 'Alaska') %>%
           st_sf()
+      leafletProxy('map') %>%
+          addPolygons(data = brdr,
+                      layerId = 'stateSelection',
+                      color = '#000',
+                      weight = 3,
+                      fill = FALSE) %>%
+          fitBounds(lng1 = bounds[[1]],
+                    lat1 = bounds[[2]],
+                    lng2 = bounds[[3]],
+                    lat2 = bounds[[4]]
+          )
     } else {
-        bounds <- state_sf %>%st_sf() %>%
+        bounds <- state_sf %>% st_sf() %>%
             filter(NAME == !!quostate) %>%
             select(geometry) %>%
             st_bbox()
         brdr  <- state_sf %>%
             filter(NAME == !!quostate) %>%
             st_sf()
+        leafletProxy('map') %>%
+            addPolygons(data = brdr,
+                        layerId = 'stateSelection',
+                        color = '#000',
+                        weight = 3,
+                        fill = FALSE) %>%
+            fitBounds(lng1 = bounds[[1]],
+                      lat1 = bounds[[2]],
+                      lng2 = bounds[[3]],
+                      lat2 = bounds[[4]]
+            )
     }
     print(bounds)
 
-         if(exists('brdr')) {
-            leafletProxy('map') %>%
-                addPolygons(data = brdr,layerId = 'stateSelection', color = '#000',weight = 3,fill = FALSE) %>%
-                 fitBounds(lng1 = bounds[[1]],
-                           lat1 = bounds[[2]],
-                           lng2 = bounds[[3]],
-                           lat2 = bounds[[4]]
-                 )
-         } else {
-             leafletProxy('map') %>%
-                 fitBounds(lng1 = bounds[[1]],
-                           lat1 = bounds[[2]],
-                           lng2 = bounds[[3]],
-                           lat2 = bounds[[4]]
-                 )
-         }
+
 })
  # Alert Type ####
 
 observeEvent(input$alertType, {
-    # bins and pallette
     # bins and pallette
     bins <- c(unique(quantile(fd()$inst, probs = seq(0,1,.12))),max(fd()$inst))
     pal <- colorBin("YlOrRd",
@@ -242,7 +270,7 @@ observeEvent(input$alertType, {
                     pretty = FALSE,
                     na.color = "#fefefe")
     leafletProxy('map') %>%
-    clearShapes() %>%
+#   clearShapes() %>%
     addPolygons(data = fd()
                 , group = input$alertType
                 , layerId = ~GEOID
@@ -301,37 +329,15 @@ observeEvent(input$alertType, {
                 , position = "bottomleft")
     })
 
- # store the selected state
- # observeEvent(input$state, {
- #     st_id <- enquo(input$state)
- #     loc_id <- state_sf %>%
- #             filter(NAME == !!st_id) %>%
- #             select(STATEFP)
- #
- # # })
- # #
- # # # Get the state name/full country for the selected state
- # #     observeEvent(input$map_shape_click, {
- #       output$county_name <- renderText({
- #                # print()
- #         state_sf %>%
- #               filter(NAME == !!st_id) %>%
- #               select(NAME)
- #       })
- #    })
-
 
      # store the clicked county
      observeEvent(input$map_shape_click, {
          click_data$clickedShape <- input$map_shape_click
-         # leafletProxy("map", data = input$map_shape_click) %>%
-         #     addPolygons(layerId = 'mapSelection', stroke = TRUE, fill = FALSE)
-     })
-     # Get the county and state name for that GEOID
+         })
+     # Get the county name for the clicked county
      observeEvent(input$map_shape_click, {
        output$county_name <- renderText({
-         loc_id = click_data$clickedShape$id #%>%
-               # print()
+         loc_id = click_data$clickedShape$id
          filter(fd(), GEOID == loc_id) %>%
          select(NAME, description, STUSPS) %>%
          st_set_geometry(NULL) %>%
@@ -339,31 +345,55 @@ observeEvent(input$alertType, {
        })
     })
 
-
-
- #Create a table with all the events of type in that geoid
+#Create a table with all the events of type in that geoid
    output$events <- renderDataTable({
      county_events = click_data$clickedShape$id
-     selectedState = input$state
+     quocounty = quo(county_events)
+     state = input$state
+     quostate = quo(state)
      alert_type = input$alertType
-       print(county_events)
+
+       message(paste0('selected county is ',county_events))
+       message(paste0('selected state is ',state))
+       message(paste0('alert type is ',alert_type))
        print(input$dateRange)
      #### What are we looking to put in our table?
      #### Whole country or single county?
-     if (selectedState == 'Full Country') {tmptbl <- fips_msg
-     } else{tmptbl <- fips_msg %>% filter(GEOID == county_events)}
-     if (alert_type == "Total") {tmptbl <- tmptbl %>% left_join(msg2)
-     } else {tmptbl <- tmptbl %>% left_join(msg2) %>%
-               filter(type == alert_type)}
+         if (is.null(county_events)) { ## All cases where we haven't selected a county
+             if (state == 'Full Country') {
+                 tmptbl <- fips_msg
+             } else if (state == 'Continental US') {
+                 tmptbl <- fips_msg %>%
+                     mutate(stfps = str_extract(GEOID, '^[0-9]{2}')) %>%
+                     filter(!(stfps %in% c('02', '15', '72'))) %>%
+                     select(-stfps)
+             } else{tmptbl <- fips_msg %>% ## Get all messages from given state
+                    mutate(stfps = str_extract(GEOID, '^[0-9]{2}')) %>%
+                    filter(stfps == map_states() %>%
+                                        filter(NAME == !!quostate) %>%
+                                            select(STATEFP) %>%
+                                            as.character()) %>%
+                    select(-stfps)}
+        } else {tmptbl <- fips_msg %>%
+                filter(GEOID == !!quocounty)
+        }
+     #### All alerts or specific type?
+     if (alert_type == 'Total') {
+         tmptbl <- tmptbl %>%
+             left_join(msg2)
+     } else {
+        tmptbl <- tmptbl %>%
+            left_join(msg2) %>%
+            filter(type == alert_type)}
 
-     tmptbl <- tmptbl %>%
-         distinct(msg_id,.keep_all = TRUE) %>%
-         arrange(desc(rec_time)) %>%
-         transmute(`Date` = rec_time
-                       , `Message Text` = str_replace_all(wea, "\'", "")
-                       , `Affected Areas` = areas) %>%
-         filter(Date >= min(input$dateRange)) %>%
-         filter(Date <= max(input$dateRange) + 1)
+       tmptbl <- tmptbl %>%
+            distinct(msg_id,.keep_all = TRUE) %>%
+            arrange(desc(rec_time)) %>%
+            transmute(`Date` = rec_time
+                           , `Message Text` = str_replace_all(wea, "\'", "")
+                           , `Affected Areas` = areas) %>%
+            filter(Date >= min(input$dateRange)) %>%
+            filter(Date <= max(input$dateRange) + 1)
 
 
 ###### Place Output into datatable ######

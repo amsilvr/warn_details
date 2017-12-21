@@ -35,7 +35,7 @@ long_county <- counties_sf %>%
 long_county[is.na(long_county)] <- 0
 
 #bins <- c(0, 1, 3, 5, 10, 20, 30, 40, 80, 205)
-bins <- c(1,5,10,15,20,25,30,40,50,210)
+bins <- c(1,5,10,15,20,25,30,40,50,240)
 pal <- colorBin("YlOrRd",
                 domain = NULL,
                 bins = bins,

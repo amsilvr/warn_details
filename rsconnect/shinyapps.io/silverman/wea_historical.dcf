@@ -1,0 +1,13 @@
+name: wea_historical
+title: wea_historical
+username:
+account: silverman
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 251039
+bundleId: 1146989
+url: https://silverman.shinyapps.io/wea_historical/
+when: 1513896374.03226
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: .RData|_Monthly_Message_Copy.R|harvey.R|leaflet.R|retrieve_xml.R|docs/index.html|data

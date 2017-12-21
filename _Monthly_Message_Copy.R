@@ -3,6 +3,7 @@
 # Suggested monthly run
 
 library(googlesheets)
+if (require(tidyverse) == FALSE){(install.packages("tidyverse"))}
 require(tidyverse)
 require(lubridate)
 

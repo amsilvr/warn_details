@@ -8,15 +8,15 @@ library(sf)
 library(htmltab)
 
 ss_new <- gs_key("1Xw4JefUCS4HHQ0KpvKhr-DjklqzhH3_CeA-zhoAuQfI", visibility = "private") #CMAS_Alerts_Processed
-day_file_name <- paste0(today(),"-msgfile.csv")
+#day_file_name <- paste0(today(),"-msgfile.csv")
 
 load_msgs <- function() {
 
-   if (file.exists(day_file_name)) {
-     msg <- read_csv(day_file_name) %>% select(-X1)
-   }
+   # if (file.exists(day_file_name)) {
+   #   msg <- read_csv(day_file_name) %>% select(-X1)
+   # }
 
-  else
+  #else
     msg <-  gs_read_csv(ss = ss_new
                        , col_names = c("rec_time", "cmac", "full_text")
                        , coltypes = "Tcc", skip = 1, trim_ws = TRUE) %>%
@@ -299,13 +299,14 @@ classify_message <- function(msg) {
 # downloaded the data and cleaned it today. If so, get
 # it from the csv created on today's date.
 # If we haven't created the msg df today, then load
-# from the google sheet
+# from the google sheet.
+# This is commented out for shinyapps.io versions
 
 if (!exists("msg")) {
-  if (file.exists(day_file_name)) {
-      msg <- read.csv(day_file_name)
-      }
-  else
+  # if (file.exists(day_file_name)) {
+  #     msg <- read.csv(day_file_name)
+  #     }
+  # else
     msg <- load_msgs()
   }
 
