@@ -1,12 +1,12 @@
 #### Remaining to-do list ####
 
-# Dropdown to go to full country
+# x Dropdown to go to full country
 # x Dropdown to select specific state
-##  change on state dropdown should select whole state for tabular results
-# Map changes on date selection as well as type selection
+# X change on state dropdown should select whole state for tabular results
+# X Map changes on date selection as well as type selection
 # x Dynamic coloring for legend and map
 # Histogram of alert types
-# Click an alert in the table and have it highlighted on the map
+# Click an alert in the table and have it highlighted on the map -
 
 #### Setup ####
 
@@ -17,12 +17,6 @@ library(stringr)
 library(sf)
 library(leaflet)
 library(DT)
-
-## Centers for all states
-
-# state_list <- tibble(name = state.name
-#                      , ctrx = state.center$x
-#                      , ctry = state.center$y)
 
 # Download Shapefiles
 #
@@ -97,10 +91,6 @@ ui <- fluidPage(
                                     select(NAME) %>%
                                     arrange(NAME))))
         ),
-        # ,
-        # column(1, # Update button
-        #        actionButton(inputId = "update", label = "Update Map")
-        # )
 
     #### Instructions ####
     fluidRow(column(10, offset = 1,
@@ -111,16 +101,14 @@ ui <- fluidPage(
            textOutput("last_alert", inline = TRUE),
           "."),
         p("Messages are received by PBS from FEMA's IPAWS-OPEN alert
-          aggregator and transmitted using the PBS Internconnection
-          and then from every public television station in the
-          country to cellular mobile service providers. This alternate path
-          protects WEA messages against a failure of
-          the cellular company's internet connection to IPAWS-OPEN."),
+          aggregator, and then rebroadcast from every public television station in the
+          country to cellular mobile service providers. This alternate path for WEA
+          protects WEA messages against an internet connection failure."),
         p("This map is provided as a convenience for responders, researchers, and the public.
           It is not guaranteed to be complete or error-free. Geographic outlines reflect
           the orignators' input target areas, actual alert coverage depends on cellular
           system implementation and may vary."),
-        p("For a map of current alerts, please visit ",
+        p("For a map of currently active alerts, please visit ",
           a('warn.pbs.org', href='http://warn.pbs.org'),
           ". For more information about PBS WARN, please visit ",
           a('pbs.org/about/WARN', href='http://www.pbs.org/about/contact-information/warn/'),
@@ -131,9 +119,6 @@ ui <- fluidPage(
   # choropleth map
   fluidRow(
       column(10, offset = 1#,
-      # h4(textOutput("type", inline = TRUE),
-      #          "Warnings:",
-      #          textOutput("county_name", inline = TRUE))
       )),
   fluidRow(
     column(6, offset = 1,
@@ -142,14 +127,12 @@ ui <- fluidPage(
   #### list of alerts ####
 
     column(width = 5,
-         DT::dataTableOutput("events")
+        DT::dataTableOutput("events")
     )
   )
 )
 
-# end ui
-
-# Define server logic required to draw a choropleth
+# Define server logic required to draw choropleth and datatable
 server <- function(input, output, session) {
   output$type <- renderText(input$alertType)
 
@@ -183,17 +166,13 @@ fd <- reactive({
 output$map <- renderLeaflet({
     leaflet() %>%
     addProviderTiles(providers$Stamen.TonerLite) %>%
-        # addPolygons(data = st_sf(state_sf),
-        #             layerId = 'StateBorders',
-        #             color = '#000',
-        #             weight = 2,
-        #             fill = FALSE) %>%
-    setView(-98.5, 40,zoom = 4)
+       setView(-98.5, 40,zoom = 4)
 })
-
+## When you pick a full state, clear the clicked county
 observeEvent(input$state,{
     quostate <- quo(input$state)
     click_data$clickedShape$id <- NULL
+
 
     output$county_name <- renderText({
         input$state
@@ -219,7 +198,7 @@ observeEvent(input$state,{
                       lat1 = bounds[[2]],
                       lng2 = bounds[[3]],
                       lat2 = bounds[[4]])
-    } else if(input$state == "Alaska") {
+    } else if(input$state == "Alaska") { ##automatic bounds don't work here
       bounds <- list(-179.1505, 51.2097, -129.9795, 71.4410)
       brdr  <- state_sf %>%
           filter(NAME == 'Alaska') %>%
@@ -305,7 +284,7 @@ observeEvent(input$alertType, {
 
         )
 })
-# Store the Map Boundaries on screen ####
+# Store the Map Boundaries on screen so map doesn't reset when new filters applied
  observeEvent(input$map1_bounds, {
    proxy <- leafletProxy("map") %>%
      setView(input$map1_bounds)
