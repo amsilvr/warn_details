@@ -1,12 +1,14 @@
 #### Remaining to-do list ####
 
+# Histogram of alert types
+# Click an alert in the table and have it highlighted on the map
+
+#### Done ####
 # x Dropdown to go to full country
 # x Dropdown to select specific state
 # X change on state dropdown should select whole state for tabular results
 # X Map changes on date selection as well as type selection
 # x Dynamic coloring for legend and map
-# Histogram of alert types
-# Click an alert in the table and have it highlighted on the map -
 
 #### Setup ####
 
@@ -114,7 +116,8 @@ ui <- fluidPage(
           a('pbs.org/about/WARN', href='http://www.pbs.org/about/contact-information/warn/'),
          " or email ",
            a('Aaron Silverman', href='mailto://amsilverman@pbs.org'),
-          '.'))),
+          ". Code available at ",
+         a('https://github.com/amsilvr/warn_details', href='https://github.com/amsilvr/warn_details')))),
 
   # choropleth map
   fluidRow(
