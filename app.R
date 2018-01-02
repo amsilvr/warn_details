@@ -169,26 +169,13 @@ fd <- reactive({
 output$map <- renderLeaflet({
     leaflet() %>%
     addProviderTiles(providers$Stamen.TonerLite) %>%
-<<<<<<< HEAD
-       setView(-98.5, 40,zoom = 4)
-=======
-        # addPolygons(data = st_sf(state_sf),
-        #             layerId = 'StateBorders',
-        #             color = '#000',
-        #             weight = 2,
-        #             fill = FALSE) %>%
     setView(-98.5, 40,zoom = 4)
->>>>>>> origin/master
 })
 ## When you pick a full state, clear the clicked county
 observeEvent(input$state,{
     quostate <- quo(input$state)
     click_data$clickedShape$id <- NULL
 
-<<<<<<< HEAD
-
-=======
->>>>>>> origin/master
     output$county_name <- renderText({
         input$state
     })
@@ -213,11 +200,7 @@ observeEvent(input$state,{
                       lat1 = bounds[[2]],
                       lng2 = bounds[[3]],
                       lat2 = bounds[[4]])
-<<<<<<< HEAD
     } else if(input$state == "Alaska") { ##automatic bounds don't work here
-=======
-    } else if(input$state == "Alaska") {
->>>>>>> origin/master
       bounds <- list(-179.1505, 51.2097, -129.9795, 71.4410)
       brdr  <- state_sf %>%
           filter(NAME == 'Alaska') %>%

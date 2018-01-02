@@ -5,9 +5,9 @@ account: silverman
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 251039
-bundleId: 1146989
+bundleId: 1159518
 url: https://silverman.shinyapps.io/wea_historical/
-when: 1513896374.03226
+when: 1514932137.28687
 asMultiple: FALSE
 asStatic: FALSE
-ignoredFiles: .RData|_Monthly_Message_Copy.R|harvey.R|leaflet.R|retrieve_xml.R|docs/index.html|data
+ignoredFiles: .RData|_Monthly_Message_Copy.R|leaflet.R|docs/index.html
