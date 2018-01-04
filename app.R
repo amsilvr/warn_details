@@ -29,11 +29,28 @@ countyshapes_url <- "http://www2.census.gov/geo/tiger/GENZ2016/shp/cb_2016_us_co
 if (!dir.exists("data")) {dir.create("data")}
 if (!file.exists("data/county_shape_file.zip")) {
   download.file(countyshapes_url
-                , destfile = "data/county_shape_file.zip")}
+                , destfile = "data/county_shape_file.zip")
+    }
 
   c_shp <- unzip("data/county_shape_file.zip", exdir = "data")
 
-state_sf <- map_states()
+  state_sf <- map_states() %>%
+      left_join(regions)
+
+#Create regional collections of states for next category
+#   regions <- state.abb %>%
+#         as.matrix(ncol = 1) %>%
+#         cbind(as.matrix(state.region, ncol = 1)) %>%
+#         cbind(as.matrix(state.division, ncol = 1)) %>%
+#         as_tibble
+#
+#         colnames(regions) <- c("STUSPS", "Region", "Division" )
+#
+#
+#   state_sf <- map_states() %>%
+#     left_join(regions) %>%
+#     mutate(Region = as.factor(Region),
+#            Division = as.factor(Division))
 
 counties_sf <- read_sf(c_shp[grep("shp$", c_shp)]) %>%
   as.data.frame() %>% #to fix July 25 problem with the join.sf methods
@@ -86,6 +103,23 @@ ui <- fluidPage(
             )
 
         ),
+        ## Next version to allow multiple State or Region Select ##
+        # column(3, # State selector
+        #        selectInput(inputId = 'state', label = 'State or Region',
+        #                    list(`Full Country` = c('Full Country',
+        #                                            'Continental US',
+        #                                            'Southeast',
+        #                                            'Southwest',
+        #                                            'Northeast',
+        #                                            'Northeast'),
+        #                          `State` =  state_sf %>%
+        #                             select(NAME) %>%
+        #                             arrange(NAME)),
+        #                        multiple = TRUE)
+        #        )
+        #
+        ## Multiple State or Region Select
+
         column(3, # State selector
                selectInput(inputId = 'state', label = 'State or Region',
                            list(`Full Country` = c('Full Country', 'Continental US'),
