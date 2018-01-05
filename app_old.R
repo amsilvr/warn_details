@@ -13,13 +13,18 @@
 #### Setup ####
 
 library(shiny)
+library(tidyverse)
+library(lubridate)
+library(stringr)
+library(sf)
 library(leaflet)
 library(DT)
 
-source("CMAS_Clean_shiny.R", echo = TRUE)
-
-load_vars()
-
+# Download Shapefiles
+#
+if (!exists("alert_tally")) {
+  source("CMAS_Clean_shiny.R", echo = TRUE)
+}
 countyshapes_url <- "http://www2.census.gov/geo/tiger/GENZ2016/shp/cb_2016_us_county_20m.zip"
 if (!dir.exists("data")) {dir.create("data")}
 if (!file.exists("data/county_shape_file.zip")) {
@@ -27,8 +32,25 @@ if (!file.exists("data/county_shape_file.zip")) {
                 , destfile = "data/county_shape_file.zip")
     }
 
-c_shp <- unzip(zipfile = 'data/county_shape_file.zip',
-               exdir = 'data')
+  c_shp <- unzip("data/county_shape_file.zip", exdir = "data")
+
+  state_sf <- map_states() #%>%
+      #left_join(regions)
+
+#Create regional collections of states for next category
+#   regions <- state.abb %>%
+#         as.matrix(ncol = 1) %>%
+#         cbind(as.matrix(state.region, ncol = 1)) %>%
+#         cbind(as.matrix(state.division, ncol = 1)) %>%
+#         as_tibble
+#
+#         colnames(regions) <- c("STUSPS", "Region", "Division" )
+#
+#
+#   state_sf <- map_states() %>%
+#     left_join(regions) %>%
+#     mutate(Region = as.factor(Region),
+#            Division = as.factor(Division))
 
 counties_sf <- read_sf(c_shp[grep("shp$", c_shp)]) %>%
   as.data.frame() %>% #to fix July 25 problem with the join.sf methods
@@ -38,7 +60,6 @@ counties_sf <- read_sf(c_shp[grep("shp$", c_shp)]) %>%
   st_sf(sf_column_name = 'geometry') %>%
   st_transform('+proj=longlat +datum=WGS84')
 
-file.remove(c_shp)
 
 ### Define UI ####
 ui <- fluidPage(
@@ -82,6 +103,22 @@ ui <- fluidPage(
             )
 
         ),
+        ## Next version to allow multiple State or Region Select ##
+        # column(3, # State selector
+        #        selectInput(inputId = 'state', label = 'State or Region',
+        #                    list(`Full Country` = c('Full Country',
+        #                                            'Continental US',
+        #                                            'Southeast',
+        #                                            'Southwest',
+        #                                            'Northeast',
+        #                                            'Northeast'),
+        #                          `State` =  state_sf %>%
+        #                             select(NAME) %>%
+        #                             arrange(NAME)),
+        #                        multiple = TRUE)
+        #        )
+        #
+        ## Multiple State or Region Select
 
         column(3, # State selector
                selectInput(inputId = 'state', label = 'State or Region',
@@ -314,24 +351,13 @@ observeEvent(input$alertType, {
          })
      # Get the county name for the clicked county
      observeEvent(input$map_shape_click, {
-       loc_id = click_data$clickedShape$id
        output$county_name <- renderText({
+         loc_id = click_data$clickedShape$id
          filter(fd(), GEOID == loc_id) %>%
          select(NAME, description, STUSPS) %>%
          st_set_geometry(NULL) %>%
          paste(collapse = " ")
        })
-     })
-
-     observeEvent(input$map_shape_click, {
-        loc_id = click_data$clickedShape$id
-        brdr = filter(fd(), GEOID == loc_id)
-        leafletProxy('map') %>%
-           addPolygons(data = brdr,
-                       layerId = 'cty_sel',
-                       color = '#000',
-                       weight = 2,
-                       fill = FALSE)
     })
 
 #Create a table with all the events of type in that geoid
@@ -341,7 +367,7 @@ observeEvent(input$alertType, {
      state = input$state
      quostate = quo(state)
      alert_type = input$alertType
-# debugging console messages
+
        message(paste0('selected county is ',county_events))
        message(paste0('selected state is ',state))
        message(paste0('alert type is ',alert_type))

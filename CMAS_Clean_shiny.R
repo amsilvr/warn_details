@@ -7,17 +7,19 @@ library(stringr)
 library(sf)
 library(htmltab)
 
-ss_new <- gs_key("1Xw4JefUCS4HHQ0KpvKhr-DjklqzhH3_CeA-zhoAuQfI", visibility = "private") #CMAS_Alerts_Processed
-#day_file_name <- paste0(today(),"-msgfile.csv")
-
 load_msgs <- function() {
 
-   # if (file.exists(day_file_name)) {
-   #   msg <- read_csv(day_file_name) %>% select(-X1)
-   # }
+    file_start <- 'msgfile_'
+    day_file_name <- paste0('data/',file_start, today(),'.csv')
 
-  #else
-    msg <-  gs_read_csv(ss = ss_new
+   if (file.exists(day_file_name)) { # get today's file from local disk
+        msg <- read_csv(day_file_name)
+   } else if (!all(grepl(pattern = file_start, x = dir('data/')))) { # get previous file from local disk
+        msg <- read_csv(file = paste0('data/',
+                            dir('data/', pattern = file_start)))
+   } else { #go back to google sheet
+       ss_new <- gs_key("1Xw4JefUCS4HHQ0KpvKhr-DjklqzhH3_CeA-zhoAuQfI", visibility = "private") #CMAS_Alerts_Processed
+       msg <-  gs_read_csv(ss = ss_new
                        , col_names = c("rec_time", "cmac", "full_text")
                        , coltypes = "Tcc", skip = 1, trim_ws = TRUE) %>%
                 mutate(rec_time = mdy_hms(gsub(" at ", " ", rec_time)
@@ -37,10 +39,7 @@ load_msgs <- function() {
 
 
         ## creates a table for fields with "update" records
-        ######################
-        # for working offline
-        # msg <- read_csv("msgfile.csv")
-        #######################
+
         updates <- filter(msg, nchar(special_handling) < 10) %>%
                 select(rec_time, cmac, gateway_id, msg_id
                        , ref_id = special_handling
@@ -75,27 +74,31 @@ load_msgs <- function() {
                         , areas = str_trim(areas)) %>%
                 dplyr::filter(!(gateway_id == "http://tcs.tsis.com\n") )
 
-        msg <- msg[-grep(" test", msg$threat_type),]
-       # write.csv(msg, file = day_file_name) commented out for shinyapps version
+       msg <- msg[-grep(" test", msg$threat_type),]
+       write_csv(msg, path = day_file_name, col_names = TRUE, append = FALSE)
+       }
        return(msg)
 
-        }
+    }
 # State and Territory Lookup
 
 map_states <- function() {
-  state_url <- "http://www2.census.gov/geo/tiger/GENZ2016/shp/cb_2016_us_state_20m.zip"
+    state_url <- "http://www2.census.gov/geo/tiger/GENZ2016/shp/cb_2016_us_state_20m.zip"
 
+    if (!dir.exists("data")) {dir.create("data")}
+    if (!file.exists("data/state_shape_file.zip")) {
+        download.file(state_url
+                      , destfile = "data/state_shape_file.zip")
+        }
+    t <- unzip("data/state_shape_file.zip", exdir = "data")
+    # Read the file with sf
+    state_sf <- st_read(t[grep("shp$",t)], stringsAsFactors = FALSE) %>%
+        as_tibble() %>%
+        select(STATEFP, STUSPS, NAME, geometry)
 
-if (!dir.exists("data")) {dir.create("data")}
-if (!file.exists("data/state_shape_file.zip")) {
-    download.file(state_url
-                  , destfile = "data/state_shape_file.zip")
-    }
-t <- unzip("data/state_shape_file.zip", exdir = "data")
-# Read the file with sf
-st_read(t[grep("shp$",t)], stringsAsFactors = FALSE) %>%
-    as_tibble() %>%
-    select(STATEFP, STUSPS, NAME, geometry)
+    file.remove(t)
+
+    return(state_sf)
 }
 
 
@@ -107,31 +110,43 @@ map_counties <- function() {
     download.file(countyshapes_url
                   , destfile = "data/county_shape_file.zip")
   }
-    t <- unzip("data/county_shape_file.zip", exdir = "data")
+    t <- unzip(zipfile = 'data/county_shape_file.zip',
+               exdir = 'data')
     state_sf <- map_states()
    # Read the file with sf
-    st_read(t[grep("shp$",t)], stringsAsFactors = FALSE) %>%
-      as_tibble() %>%
-      left_join(state_sf, suffix = c('county','state'),by = "STATEFP") %>%
+    cty_sf <- st_read(t[grep("shp$",t)], stringsAsFactors = FALSE) %>%
+      as.data.frame() %>%
+        inner_join(lsad_lookup()) %>%
+        select(STATEFP, COUNTYFP, GEOID, NAME, description, geometry) %>%
+        left_join(state_sf %>% select(STATEFP, STUSPS)) %>%
       select(STATEFP,
            COUNTYFP,
            GEOID,
-           NAME = NAMEcounty,
-           LSAD,
-           iso_3166_2 = STUSPS,
-           geometrycounty) %>%
+           NAME,
+           description,
+           STUSPS,
+           geometry) %>%
     group_by(STATEFP, COUNTYFP) %>%
-    st_sf(sf_column_name = 'geometrycounty')
+    st_sf(sf_column_name = 'geometry')
+
+    file.remove(t)
+
+    return(cty_sf)
     }
 
 
 ## Download local copy of FIPS lookup data and read into memory
 load_fips <- function() {
-  counties_sf <- map_counties() %>%
-    as.data.frame() %>%
-    transmute(areaname = paste(iso_3166_2, NAME),
-           GEOID = as.character(GEOID)) %>%
-      as.tibble()
+    if(!exists('data/fips-lookup.csv')){
+      counties_sf <- map_counties() %>%
+        as.data.frame() %>%
+        transmute(areaname = paste(STUSPS, NAME),
+               GEOID = as.character(GEOID)) %>%
+          as.tibble() %>%
+          write_csv(path = "data/fips-lookup.csv")
+     }
+       read_csv('data/fips-lookup.csv')
+
   }
 lsad_lookup <- function() {
 # This looks up the location classification names
@@ -188,7 +203,7 @@ area_find <- function(area_list) {
 full_state <- function(areas_states) {
   if (!exists("fips_lookup")) fips_lookup <- load_fips() %>%
   #fips_lookup %>%
-        mutate(iso_3166_2 = str_match(areaname, "[A-Z]{2}")) %>%
+        mutate(STUSPS = str_match(areaname, "[A-Z]{2}")) %>%
         distinct() %>%
         right_join(areas_states) %>%
         transmute(msg_id = as.character(msg_id)
@@ -203,7 +218,7 @@ flatten_fips <- function(msg) {
                      , areas)
   #separate out alerts with full state areas, convert directly to fips
   areas_states <- filter(areas, str_length(areas) == 2) %>%
-      transmute(msg_id, iso_3166_2 = areas) %>%
+      transmute(msg_id, STUSPS = areas) %>%
       full_state()
   #remove those alerts from the other areas
   areas <- filter(areas, str_length(areas) > 2)
@@ -291,34 +306,6 @@ classify_message <- function(msg) {
     )
 }
 
-######################
-## Run Functions  ####
-
-
-# If msg isn't in memory, check to see if we have already
-# downloaded the data and cleaned it today. If so, get
-# it from the csv created on today's date.
-# If we haven't created the msg df today, then load
-# from the google sheet.
-# This is commented out for shinyapps.io versions
-
-if (!exists("msg")) {
-  # if (file.exists(day_file_name)) {
-  #     msg <- read.csv(day_file_name)
-  #     }
-  # else
-    msg <- load_msgs()
-  }
-
-
-msg2 <- classify_message(msg) %>%
-  arrange(desc(rec_time)) %>%
-  distinct()
-
-if (!exists("fips_msg")) {
-   fips_msg <- flatten_fips(msg2)
-}
-
 tally_alerts <- function(df = msg2
                          , fips_msg = fips_msg
                          , start = NULL
@@ -335,6 +322,58 @@ tally_alerts <- function(df = msg2
         rename(WEATYPE = type, WEANUM = n) %>%
         spread(WEATYPE, WEANUM, fill = "0",drop = TRUE, convert = TRUE) %>%
         mutate(Total = AMBER + FlashFlood
-               + Hurricane + Other + Tornado)
-                         }
-alert_tally <- tally_alerts(msg2, fips_msg)
+               + Hurricane + Other + Tornado)}
+
+######################
+## Run Functions  ####
+# If msg isn't in memory, check to see if we have already
+# downloaded the data and cleaned it today. If so, get
+# it from the csv created on today's date.
+# If we haven't created the msg df today, then load
+# from the google sheet.
+# This is commented out for shinyapps.io versions
+
+load_vars <- function() { ## Loads variables into global environment
+
+    msg <<- load_msgs()
+
+    if(all(grepl(pattern = "msg-class", x = dir('data')))) {
+         msg2 <<-  read_csv(
+             file = paste0("data/",
+                           dir("data/",
+                               pattern = "msg-class")[1]))
+     } else {msg2 <<- classify_message(msg) %>%
+        arrange(desc(rec_time)) %>%
+        distinct() %>%
+        write_csv(
+            path = paste0('data/msg-class_',
+                          today(),
+                          '.csv'),
+            append = FALSE,col_names = TRUE)}
+
+    if(!all(grepl(pattern = "fips-msg", x = dir('data')))) {
+        fips_msg <<- read_csv(
+            file = paste0("data/",
+                          dir("data/",
+                              pattern = "fips-msg")[1]))
+    } else {
+        fips_msg <<- flatten_fips(msg2) %>%
+        write_csv(path = paste0('data/fips-msg_',today(),'.csv'),append = FALSE,col_names = TRUE)
+    }
+
+
+    if((!all(grepl(pattern = "alert-tally", x = dir('data'))))) {
+      alert_tally <<- read_csv(
+          file = paste0("data/",
+                        dir("data/",
+                            pattern = "alert-tally")[1]))
+    } else {
+        alert_tally <- tally_alerts(msg2, fips_msg) %>%
+        write_csv(path = paste0("data/alert-tally_",today(),".csv"),
+                  append = FALSE,
+                  col_names = TRUE
+                )
+    }
+
+    state_sf <<- map_states()
+}
