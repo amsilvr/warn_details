@@ -16,7 +16,7 @@ library(shiny)
 library(leaflet)
 library(DT)
 
-source("CMAS_Clean_shiny.R", echo = TRUE)
+source("CMAS_Clean_shiny.R", echo = FALSE)
 
 load_vars()
 

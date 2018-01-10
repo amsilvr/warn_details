@@ -8,17 +8,22 @@ library(sf)
 library(htmltab)
 
 load_msgs <- function() {
-
+    #browser()
     file_start <- 'msgfile_'
     day_file_name <- paste0('data/',file_start, today(),'.csv')
 
    if (file.exists(day_file_name)) { # get today's file from local disk
         msg <- read_csv(day_file_name)
-   } else if (!all(grepl(pattern = file_start, x = dir('data/')))) { # get previous file from local disk
+   } else if (any(grepl(pattern = file_start, x = dir('data/')))) { # get previous file from local disk
         msg <- read_csv(file = paste0('data/',
                             dir('data/', pattern = file_start)))
    } else { #go back to google sheet
-       ss_new <- gs_key("1Xw4JefUCS4HHQ0KpvKhr-DjklqzhH3_CeA-zhoAuQfI", visibility = "private") #CMAS_Alerts_Processed
+       # first update the sheet
+       source('_Monthly_Message_Copy.R')
+        NewCMASImport()
+       # get all records
+
+       #ss_new <- gs_key("1Xw4JefUCS4HHQ0KpvKhr-DjklqzhH3_CeA-zhoAuQfI", visibility = "private") #CMAS_Alerts_Processed
        msg <-  gs_read_csv(ss = ss_new
                        , col_names = c("rec_time", "cmac", "full_text")
                        , coltypes = "Tcc", skip = 1, trim_ws = TRUE) %>%
@@ -334,10 +339,10 @@ tally_alerts <- function(df = msg2
 # This is commented out for shinyapps.io versions
 
 load_vars <- function() { ## Loads variables into global environment
-
+    #browser()
     msg <<- load_msgs()
 
-    if(all(grepl(pattern = "msg-class", x = dir('data')))) {
+    if(any(grepl(pattern = "msg-class", x = dir('data')))) {
          msg2 <<-  read_csv(
              file = paste0("data/",
                            dir("data/",
@@ -351,7 +356,7 @@ load_vars <- function() { ## Loads variables into global environment
                           '.csv'),
             append = FALSE,col_names = TRUE)}
 
-    if(!all(grepl(pattern = "fips-msg", x = dir('data')))) {
+    if(any(grepl(pattern = "fips-msg", x = dir('data')))) {
         fips_msg <<- read_csv(
             file = paste0("data/",
                           dir("data/",
@@ -362,7 +367,7 @@ load_vars <- function() { ## Loads variables into global environment
     }
 
 
-    if((!all(grepl(pattern = "alert-tally", x = dir('data'))))) {
+    if((any(grepl(pattern = "alert-tally", x = dir('data'))))) {
       alert_tally <<- read_csv(
           file = paste0("data/",
                         dir("data/",
