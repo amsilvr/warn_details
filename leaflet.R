@@ -1,32 +1,33 @@
+library(shiny)
 library(leaflet)
-library(tidyverse)
-library(lubridate)
-library(stringr)
-library(rgdal)
-library(sf)
 
-if (!exists("alert_tally")) {
-    source("CMAS_Clean_shiny.R", echo = TRUE)
-}
+source("CMAS_Clean_shiny.R", echo = TRUE)
+
+load_vars()
+
 countyshapes_url <- "http://www2.census.gov/geo/tiger/GENZ2016/shp/cb_2016_us_county_20m.zip"
 if (!dir.exists("data")) {dir.create("data")}
 if (!file.exists("data/county_shape_file.zip")) {
     download.file(countyshapes_url
-                  , destfile = "data/county_shape_file.zip")}
+                  , destfile = "data/county_shape_file.zip")
+}
 
-c_shp <- unzip("data/county_shape_file.zip", exdir = "data")
+c_shp <- unzip(zipfile = 'data/county_shape_file.zip',
+               exdir = 'data')
 
-counties_sf <- read_sf(c_shp[grep("shp$", c_shp)]) %>% #pulls the shp file from the zip
-    as.data.frame() %>%
-    left_join(state_iso) %>%
+counties_sf <- read_sf(c_shp[grep("shp$", c_shp)]) %>%
+    as.data.frame() %>% #to fix July 25 problem with the join.sf methods
     inner_join(lsad_lookup()) %>%
-    select(STATEFP, COUNTYFP, GEOID, NAME, description, iso_3166_2, geometry) %>%
-    st_sf() %>%
+    select(STATEFP, COUNTYFP, GEOID, NAME, description, geometry) %>%
+    left_join(state_sf %>% select(STATEFP, STUSPS)) %>%
+    st_sf(sf_column_name = 'geometry') %>%
     st_transform('+proj=longlat +datum=WGS84')
+
+file.remove(c_shp)
 
 long_county <- counties_sf %>%
     transmute(GEOID
-            , name = paste0(NAME, " ", description,", ", iso_3166_2)
+            , name = paste0(NAME, " ", description,", ", STUSPS)
             , geometry) %>%
         left_join(alert_tally %>%
                     gather("alertType", "value", -GEOID)
@@ -43,8 +44,8 @@ pal <- colorBin("YlOrRd",
                 na.color = "#fefefe")
 
 p <- leaflet() %>%
-        addTiles() %>%
-        #addProviderTiles(providers$Stamen.TonerLite, group = "Toner by Stamen") %>%
+        #addTiles() %>%
+        addProviderTiles(providers$Stamen.TonerLite, group = "Toner by Stamen") %>%
         setView(lng = -93.85, lat = 37.45, zoom = 4) %>%
     addPolygons(
                   data = long_county
@@ -89,6 +90,6 @@ p <- leaflet() %>%
     addLegend(pal = pal
               , values = bins
               , opacity = .5
-              #, group = alertType
+              #, group = ~alertType
               , title = paste0("Number of "," WEAs")
               , position = "topleft")

@@ -2,6 +2,7 @@
 
 # Histogram of alert types
 # Click an alert in the table and have it highlighted on the map
+# better ranges on choropleth based on alert type
 
 #### Done ####
 # x Dropdown to go to full country
@@ -16,7 +17,7 @@ library(shiny)
 library(leaflet)
 library(DT)
 
-source("CMAS_Clean_shiny.R", echo = FALSE)
+source("CMAS_Clean_shiny.R", echo = TRUE)
 
 load_vars()
 
@@ -85,7 +86,7 @@ ui <- fluidPage(
 
         column(3, # State selector
                selectInput(inputId = 'state', label = 'State or Region',
-                           list(`Full Country` = c('Continental US', 'Full Country'),
+                           list(`Full Country` = c('Full Country','Continental US'),
                                  `State` =  state_sf %>%
                                     select(NAME) %>%
                                     arrange(NAME))))
