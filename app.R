@@ -2,7 +2,7 @@
 
 # Histogram of alert types
 # Click an alert in the table and have it highlighted on the map
-# better ranges on choropleth based on alert type
+# better bins on choropleth based on alert type (manual hack for now)
 
 #### Done ####
 # x Dropdown to go to full country
@@ -21,25 +21,6 @@ source("CMAS_Clean_shiny.R", echo = TRUE)
 
 load_vars()
 
-countyshapes_url <- "http://www2.census.gov/geo/tiger/GENZ2016/shp/cb_2016_us_county_20m.zip"
-if (!dir.exists("data")) {dir.create("data")}
-if (!file.exists("data/county_shape_file.zip")) {
-  download.file(countyshapes_url
-                , destfile = "data/county_shape_file.zip")
-    }
-
-c_shp <- unzip(zipfile = 'data/county_shape_file.zip',
-               exdir = 'data')
-
-counties_sf <- read_sf(c_shp[grep("shp$", c_shp)]) %>%
-  as.data.frame() %>% #to fix July 25 problem with the join.sf methods
-  inner_join(lsad_lookup()) %>%
-    select(STATEFP, COUNTYFP, GEOID, NAME, description, geometry) %>%
-    left_join(state_sf %>% select(STATEFP, STUSPS)) %>%
-  st_sf(sf_column_name = 'geometry') %>%
-  st_transform('+proj=longlat +datum=WGS84')
-
-file.remove(c_shp)
 
 ### Define UI ####
 ui <- fluidPage(
@@ -159,9 +140,9 @@ fd <- reactive({
                               Click on a county for a list of events in that county.")
 
 # Most recent alert
-  output$last_alert <- renderText(paste0(month(max(msg$rec_time),label = TRUE),' ',
-                                        day(max(msg$rec_time)),', ',
-                                        year(max(msg$rec_time))))
+  output$last_alert <- renderText(paste0(month(max(msg2$rec_time),label = TRUE),' ',
+                                        day(max(msg2$rec_time)),', ',
+                                        year(max(msg2$rec_time))))
 
  # Base Map ####
 output$map <- renderLeaflet({
@@ -242,11 +223,17 @@ observeEvent(input$state,{
 
 observeEvent(input$alertType, {
     # bins and pallette
-    bins <- c(unique(quantile(fd()$inst, probs = seq(0,1,.12))),max(fd()$inst))
+if (input$alertType == "Hurricane") {
+        bins <- c(0,1,2,4,8,max(alert_tally$Hurricane))
+    } else if (input$alertType == "Other") {
+        bins <- c(0,1,10,20,30,40,50,60,max(alert_tally$Other))
+    } else bins <- c(unique(quantile(fd()$inst,
+                                     probs = seq(0,1,by = .12),
+                                     type = 2)),max(fd()$inst))
     pal <- colorBin("YlOrRd",
-                    domain = NULL,
+                    domain = fd()$inst,
                     bins = bins,
-                    pretty = FALSE,
+                    pretty = TRUE,
                     na.color = "#fefefe")
     leafletProxy('map') %>%
 #   clearShapes() %>%
@@ -293,7 +280,13 @@ observeEvent(input$alertType, {
  # Re-title the legend
  observeEvent(input$alertType, {
      # bins and pallette
-     bins <- c(unique(quantile(fd()$inst, probs = seq(0,1,.12))),max(fd()$inst))
+     if (input$alertType == "Hurricane") {
+         bins <- c(0,1,2,4,8,max(alert_tally$Hurricane))
+     } else if (input$alertType == "Other") {
+         bins <- c(0,1,10,20,30,40,50,60,max(alert_tally$Other))
+     } else bins <- c(unique(quantile(fd()$inst,
+                               probs = seq(0,1,by = .12),
+                               type = 2)),max(fd()$inst))
      pal <- colorBin("YlOrRd",
                      domain = NULL,
                      bins = bins,
@@ -305,7 +298,8 @@ observeEvent(input$alertType, {
                 , values = ~inst
                 , opacity = .5
                 , title = paste0("Number of ",input$alertType," WEAs")
-                , position = "bottomleft")
+                , position = "bottomleft"
+                , labFormat = labelFormat(digits = 0))
     })
 
 

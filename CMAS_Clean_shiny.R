@@ -109,34 +109,32 @@ map_states <- function() {
 
 map_counties <- function() {
   # Download Shapefiles
-  countyshapes_url <- "http://www2.census.gov/geo/tiger/GENZ2016/shp/cb_2016_us_county_20m.zip"
-  if (!dir.exists("data")) {dir.create("data")}
-  if (!file.exists("data/county_shape_file.zip")) {
-    download.file(countyshapes_url
-                  , destfile = "data/county_shape_file.zip")
-  }
-    t <- unzip(zipfile = 'data/county_shape_file.zip',
-               exdir = 'data')
-    state_sf <- map_states()
-   # Read the file with sf
-    cty_sf <- st_read(t[grep("shp$",t)], stringsAsFactors = FALSE) %>%
-      as.data.frame() %>%
+    countyshapes_url <- "http://www2.census.gov/geo/tiger/GENZ2016/shp/cb_2016_us_county_20m.zip"
+    if (!dir.exists("data")) {dir.create("data")}
+    if (!file.exists("data/county_shape_file.zip")) {
+        download.file(countyshapes_url
+                      , destfile = "data/county_shape_file.zip")
+    }
+
+    c_shp <- unzip(zipfile = 'data/county_shape_file.zip',
+                   exdir = 'data')
+
+    counties_sf <- read_sf(c_shp[grep("shp$", c_shp)]) %>%
+        as.data.frame() %>% #to fix July 25 problem with the join.sf methods
         inner_join(lsad_lookup()) %>%
-        select(STATEFP, COUNTYFP, GEOID, NAME, description, geometry) %>%
+        select(STATEFP,
+               COUNTYFP,
+               GEOID,
+               NAME,
+               description,
+               geometry) %>%
         left_join(state_sf %>% select(STATEFP, STUSPS)) %>%
-      select(STATEFP,
-           COUNTYFP,
-           GEOID,
-           NAME,
-           description,
-           STUSPS,
-           geometry) %>%
-    group_by(STATEFP, COUNTYFP) %>%
-    st_sf(sf_column_name = 'geometry')
+        st_sf(sf_column_name = 'geometry') %>%
+        st_transform('+proj=longlat +datum=WGS84')
 
-    file.remove(t)
+    file.remove(c_shp)
 
-    return(cty_sf)
+    return(counties_sf)
     }
 
 
@@ -340,7 +338,7 @@ tally_alerts <- function(df = msg2
 
 load_vars <- function() { ## Loads variables into global environment
     #browser()
-    msg <<- load_msgs()
+    msg <- load_msgs()
 
     if(any(grepl(pattern = "msg-class", x = dir('data')))) {
          msg2 <<-  read_csv(
@@ -381,4 +379,8 @@ load_vars <- function() { ## Loads variables into global environment
     }
 
     state_sf <<- map_states()
+    counties_sf <<- map_counties()
+
 }
+
+
