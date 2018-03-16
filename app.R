@@ -19,8 +19,10 @@ library(DT)
 
 source("CMAS_Clean_shiny.R", echo = TRUE)
 
-load_vars()
-
+if (!file.exists('wea_alerts.rda')) {
+        load_vars()
+        save.image(file = "wea_alerts.rda")
+    } else load(file = "wea_alerts.rda")
 
 ### Define UI ####
 ui <- fluidPage(
@@ -353,7 +355,7 @@ if (input$alertType == "Hurricane") {
                      select(-stfps)
              } else{tmptbl <- fips_msg %>% ## Get all messages from given state
                     mutate(stfps = str_extract(GEOID, '^[0-9]{2}')) %>%
-                    filter(stfps == map_states() %>%
+                    filter(stfps == state_sf %>%
                                         filter(NAME == !!quostate) %>%
                                             select(STATEFP) %>%
                                             as.character()) %>%

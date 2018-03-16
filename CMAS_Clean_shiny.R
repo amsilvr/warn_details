@@ -3,12 +3,12 @@
 library(googlesheets)
 library(tidyverse)
 library(lubridate)
-library(stringr)
 library(sf)
 library(htmltab)
 
 load_msgs <- function() {
     #browser()
+    if (!dir.exists("data")) {dir.create("data")}
     file_start <- 'msgfile_'
     day_file_name <- paste0('data/',file_start, today(),'.csv')
 
@@ -340,6 +340,10 @@ load_vars <- function() { ## Loads variables into global environment
     #browser()
     msg <- load_msgs()
 
+    state_sf <<- map_states()
+    counties_sf <<- map_counties()
+
+
     if(any(grepl(pattern = "msg-class", x = dir('data')))) {
          msg2 <<-  read_csv(
              file = paste0("data/",
@@ -377,10 +381,6 @@ load_vars <- function() { ## Loads variables into global environment
                   col_names = TRUE
                 )
     }
-
-    state_sf <<- map_states()
-    counties_sf <<- map_counties()
-
 }
 
 

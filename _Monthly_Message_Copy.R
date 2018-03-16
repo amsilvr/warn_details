@@ -23,7 +23,7 @@ NewCMASImport <- function() { #copies new messages into main sheet
 
     print(paste("The last update was", msg_last))
 
-        msg_new <- gs_read(raw) %>%
+        msg_new <- gs_read_listfeed(raw) %>%
             mutate(Rec_Time = mdy_hm(Rec_Time)) %>%
             filter(Rec_Time > msg_last) %>%
             mutate(Rec_Time =
