@@ -375,7 +375,7 @@ load_vars <- function() { ## Loads variables into global environment
                         dir("data/",
                             pattern = "alert-tally")[1]))
     } else {
-        alert_tally <- tally_alerts(msg2, fips_msg) %>%
+        alert_tally <<- tally_alerts(msg2, fips_msg) %>%
         write_csv(path = paste0("data/alert-tally_",today(),".csv"),
                   append = FALSE,
                   col_names = TRUE

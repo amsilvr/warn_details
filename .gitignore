@@ -5,7 +5,7 @@ temp
 data/
 packrat/src/
 .RData
-.httr-oauth
+*httr-oauth
 gz_2010_us_040_00_500k.zip
 unused/
 2017_hurricane_wea.R
