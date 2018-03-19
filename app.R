@@ -21,8 +21,8 @@ source("CMAS_Clean_shiny.R", echo = TRUE)
 
 if (!file.exists('wea_alerts.rda')) {
         load_vars()
-        save.image(file = "wea_alerts.rda")
-    } else load(file = "wea_alerts.rda")
+        save.image(file = "data/wea_alerts.rda")
+    } else load(file = "data/wea_alerts.rda")
 
 ### Define UI ####
 ui <- fluidPage(
