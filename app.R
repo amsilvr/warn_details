@@ -96,9 +96,9 @@ ui <- fluidPage(
           ". For more information about PBS WARN, please visit ",
           a('pbs.org/about/WARN', href='http://www.pbs.org/about/contact-information/warn/'),
          " or email ",
-           a('Aaron Silverman', href='mailto://amsilverman@pbs.org'),
+           a('George Molnar', href='mailto://gjmolnar@pbs.org'),
           ". Code available at ",
-         a('https://github.com/amsilvr/warn_details', href='https://github.com/amsilvr/warn_details')))),
+         a('Github', href='https://github.com/amsilvr/warn_details')))),
 
   # choropleth map
   fluidRow(

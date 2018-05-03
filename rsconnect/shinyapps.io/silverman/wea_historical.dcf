@@ -5,9 +5,9 @@ account: silverman
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 251039
-bundleId: 1266502
+bundleId: 1353584
 url: https://silverman.shinyapps.io/wea_historical/
-when: 1520958918.34046
+when: 1525349976.40357
 asMultiple: FALSE
 asStatic: FALSE
-ignoredFiles: .RData|app_old.R|leaflet.R|warn_flexdashboard.Rmd|docs/index.html
+ignoredFiles: Dockerfile|shiny-server.conf|start-shiny-server.sh
