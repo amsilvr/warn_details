@@ -19,7 +19,7 @@ library(DT)
 
 source("CMAS_Clean_shiny.R", echo = TRUE)
 
-if (!file.exists('wea_alerts.rda')) {
+if (!file.exists('data/wea_alerts.rda')) {
         load_vars()
         save.image(file = "data/wea_alerts.rda")
     } else load(file = "data/wea_alerts.rda")
@@ -92,13 +92,13 @@ ui <- fluidPage(
           the orignators' input target areas, actual alert coverage depends on cellular
           system implementation and may vary."),
         p("For a map of currently active alerts, please visit ",
-          a('warn.pbs.org', href='http://warn.pbs.org'),
-          ". For more information about PBS WARN, please visit ",
+          a('warn.pbs.org', href='http://warn.pbs.org.'),
+          "For more information about PBS WARN, please visit ",
           a('pbs.org/about/WARN', href='http://www.pbs.org/about/contact-information/warn/'),
          " or email ",
-           a('George Molnar', href='mailto://gjmolnar@pbs.org'),
-          ". Code available at ",
-         a('Github', href='https://github.com/amsilvr/warn_details')))),
+           a('George Molnar.', href='mailto://gjmolnar@pbs.org'),
+          " Code available at ",
+         a('Github.', href='https://github.com/amsilvr/warn_details')))),
 
   # choropleth map
   fluidRow(
